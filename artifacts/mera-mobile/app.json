@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "mera demo",
+    "slug": "mera-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "mera-demo-mobile",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "xyz.category.mera.demo",
+      "supportsTablet": false,
+      "associatedDomains": ["webcredentials:mera.category.xyz"]
+    },
+    "android": {
+      "package": "xyz.category.mera.demo"
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-secure-store",
+        {
+          "faceIDPermission": "Allow mera demo to unlock the account this device already signed in to."
+        }
+      ]
+    ],
+    "extra": {
+      "rpId": "mera.category.xyz"
+    }
+  }
+}

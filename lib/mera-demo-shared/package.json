@@ -1,0 +1,36 @@
+{
+  "name": "@category-labs/mera-demo-shared",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "exports": {
+    "./AccountChip": "./src/AccountChip.tsx",
+    "./amount": "./src/amount.ts",
+    "./base.css": "./src/base.css",
+    "./chart": "./src/chart.ts",
+    "./costBasis": "./src/costBasis.ts",
+    "./hd": "./src/hd.ts",
+    "./market": "./src/market.ts",
+    "./network": "./src/network.ts",
+    "./news": "./src/news.ts",
+    "./NewsTicker": "./src/NewsTicker.tsx",
+    "./PriceChart": "./src/PriceChart.tsx",
+    "./ui": "./src/ui.ts",
+    "./useCopyButton": "./src/useCopyButton.ts",
+    "./validation": "./src/validation.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@category-labs/mera": "workspace:*",
+    "@scure/bip32": "^2.4.0",
+    "@scure/bip39": "^2.4.0",
+    "react": "19.2.3",
+    "viem": "2.57.3"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.18",
+    "typescript": "^7.0.2"
+  }
+}

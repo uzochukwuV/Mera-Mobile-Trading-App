@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/"
+title = "Mera Mobile Demo"
+description = "The category-labs Mera React Native trading demo, using a passkey-derived account and the demo network."
+version = "1.0.0"
+id = "artifacts/mera-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 25687
+
+[services.development]
+run = "pnpm --filter @workspace/mera-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/mera-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/mera-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "25687"
+BASE_PATH = "/"
