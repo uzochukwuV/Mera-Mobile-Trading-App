@@ -20,6 +20,29 @@ import { marketRegistry } from '../perpl/context.js';
 export function createApp(): express.Express {
   const app = express();
   app.disable('x-powered-by');
+
+  // CORS is dev-permissive by design: the Expo web preview calls the
+  // API cross-origin (often via an ngrok tunnel), and browsers preflight
+  // any request carrying the `ngrok-skip-browser-warning` header the
+  // mobile client sends. That header must be allow-listed or every
+  // browser fetch fails with a network error ("Failed to fetch").
+  app.use((_req, res, next) => {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET, HEAD, POST, PUT, DELETE, OPTIONS',
+    );
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'Authorization, Content-Type, ngrok-skip-browser-warning, Accept',
+    );
+    res.setHeader('Access-Control-Max-Age', '86400');
+    next();
+  });
+  app.options('*', (_req, res) => {
+    res.status(204).end();
+  });
+
   app.use(express.json({ limit: '256kb' }));
 
   // Prune stale rate-limit buckets every 5 minutes.

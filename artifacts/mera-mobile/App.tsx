@@ -1157,53 +1157,16 @@ export default function App() {
     void loadDashboard(currentAddress(), true);
   }, [pop, loadDashboard]);
 
-  if (account === null) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.onboardingScreen}>
-          <StatusBar barStyle="dark-content" />
-          <SplashScreen connected={evm !== null} />
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
-
+  // Derived router state — computed before any early return so hook
+  // order stays stable across renders (hooks must run unconditionally).
   // Pre-auth and unlocked-but-not-touring land on S1 (real handlers).
-  const activeTour =
-    tour ?? (account.status === "unlocked" ? { tab: "dashboard", stack: [] } : null);
-  if (activeTour === null) {
-    return (
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.onboardingScreen}>
-          <StatusBar barStyle="dark-content" />
-          <OnboardingScreen
-            stage={account.status === "locked" ? "locked" : "welcome"}
-            address={
-              account.status === "locked"
-                ? truncate(account.address)
-                : undefined
-            }
-            statusText={statusText}
-            error={
-              onboardingError === null ? null : { message: onboardingError }
-            }
-            busy={busy}
-            onCreate={() => void handleCreate()}
-            onSignIn={() => void handleSignIn()}
-            onRecover={() => void handleSignIn()}
-            onUnlock={() => void handleUnlock()}
-            onSignOut={() => void handleSignOut()}
-            onTour={enterTour}
-            onContinue={enterHome}
-            onRetry={() => setOnboardingError(null)}
-          />
-        </SafeAreaView>
-      </SafeAreaProvider>
-    );
-  }
+  const activeTour: Tour | { tab: "dashboard"; stack: never[] } | null =
+    account === null
+      ? null
+      : (tour ?? (account.status === "unlocked" ? { tab: "dashboard", stack: [] } : null));
 
-  const top = activeTour.stack[activeTour.stack.length - 1] ?? null;
-  const activeTab = top === null ? activeTour.tab : null;
+  const top = activeTour?.stack[activeTour.stack.length - 1] ?? null;
+  const activeTab = top === null ? (activeTour?.tab ?? null) : null;
 
   // Live trades load on entering the Trades stack.
   useEffect(() => {
@@ -1320,6 +1283,48 @@ export default function App() {
       void loadTournaments();
     }
   }, [activeTab, loadTournaments]);
+
+  if (account === null) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.onboardingScreen}>
+          <StatusBar barStyle="dark-content" />
+          <SplashScreen connected={evm !== null} />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
+
+  if (activeTour === null) {
+    return (
+      <SafeAreaProvider>
+        <SafeAreaView style={styles.onboardingScreen}>
+          <StatusBar barStyle="dark-content" />
+          <OnboardingScreen
+            stage={account.status === "locked" ? "locked" : "welcome"}
+            address={
+              account.status === "locked"
+                ? truncate(account.address)
+                : undefined
+            }
+            statusText={statusText}
+            error={
+              onboardingError === null ? null : { message: onboardingError }
+            }
+            busy={busy}
+            onCreate={() => void handleCreate()}
+            onSignIn={() => void handleSignIn()}
+            onRecover={() => void handleSignIn()}
+            onUnlock={() => void handleUnlock()}
+            onSignOut={() => void handleSignOut()}
+            onTour={enterTour}
+            onContinue={enterHome}
+            onRetry={() => setOnboardingError(null)}
+          />
+        </SafeAreaView>
+      </SafeAreaProvider>
+    );
+  }
 
   async function handleSaveHandle(handle: string): Promise<void> {
     setSavingHandle(true);
