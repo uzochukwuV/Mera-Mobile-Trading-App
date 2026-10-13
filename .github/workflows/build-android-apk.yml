@@ -1,0 +1,122 @@
+name: Build Android APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build mera-mobile APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MERA_ANDROID_PACKAGE: ${{ vars.MERA_ANDROID_PACKAGE || 'xyz.category.mera.demo' }}
+      MERA_RP_HOST: ${{ vars.MERA_RP_HOST || 'mera.category.xyz' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.26.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Install workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate Android build settings
+        working-directory: artifacts/mera-mobile
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          pkg="$(node -e "console.log(require('./app.json').expo.android.package)")"
+          if [[ "$pkg" != "$MERA_ANDROID_PACKAGE" ]]; then
+            echo "::error::app.json android.package ($pkg) does not match MERA_ANDROID_PACKAGE ($MERA_ANDROID_PACKAGE)"
+            exit 1
+          fi
+          echo "Android package: $pkg"
+
+          rp="$(node -e "console.log(require('./app.json').expo.extra.rpId)")"
+          if [[ "$rp" != "$MERA_RP_HOST" ]]; then
+            echo "::error::app.json extra.rpId ($rp) does not match MERA_RP_HOST ($MERA_RP_HOST)"
+            exit 1
+          fi
+          echo "Passkey RP ID: $rp"
+
+          if grep -q 'SHA256_FINGERPRINT' well-known/assetlinks.json; then
+            echo '::notice::well-known/assetlinks.json still contains the SHA256_FINGERPRINT placeholder — passkeys will not work until the fingerprint logged below is added and the file is served at https://'"$rp"'/.well-known/assetlinks.json.'
+          fi
+
+      - name: Generate Android project
+        working-directory: artifacts/mera-mobile
+        run: pnpm exec expo prebuild --platform android --no-install --non-interactive
+
+      - name: Build bundled release APK
+        working-directory: artifacts/mera-mobile/android
+        run: ./gradlew --no-daemon assembleRelease
+
+      - name: Print Android passkey certificate fingerprint
+        working-directory: artifacts/mera-mobile/android
+        run: |
+          keytool -list -v \
+            -keystore app/debug.keystore \
+            -alias androiddebugkey \
+            -storepass android \
+            -keypass android | grep -E "Alias name|SHA256:"
+
+      - name: Print actual APK signing certificate
+        working-directory: artifacts/mera-mobile/android
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          APK="$(find app/build/outputs/apk/release -maxdepth 1 -name '*.apk' -print -quit)"
+
+          if [[ -z "$APK" ]]; then
+            echo "::error::Release APK not found"
+            exit 1
+          fi
+
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+
+          if [[ -z "$APKSIGNER" ]]; then
+            echo "::error::apksigner not found"
+            exit 1
+          fi
+
+          echo "APK: $APK"
+          "$APKSIGNER" verify --print-certs "$APK"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mera-mobile-android-${{ github.sha }}
+          path: artifacts/mera-mobile/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 14
