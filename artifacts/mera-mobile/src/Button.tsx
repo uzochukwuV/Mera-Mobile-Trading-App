@@ -1,6 +1,6 @@
 import type { ReactElement } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { palette } from "./theme";
+import { palette, radii, shadows, spacing } from "./theme";
 
 type ButtonProps = {
   title: string;
@@ -21,13 +21,12 @@ function Button({
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.button,
-        primary ? styles.primary : null,
+        primary ? styles.primary : styles.ghost,
         pressed ? styles.pressed : null,
         disabled ? styles.disabled : null,
       ]}
     >
-      <Text style={[styles.label, primary ? styles.primaryLabel : null]}>
+      <Text style={primary ? styles.primaryLabel : styles.ghostLabel}>
         {title}
       </Text>
     </Pressable>
@@ -62,22 +61,51 @@ function LinkButton({
 }
 
 const styles = StyleSheet.create({
-  button: {
+  disabled: { opacity: 0.45 },
+  // Ghost pill — transparent, 1px linen border, slate text.
+  ghost: {
     alignItems: "center",
-    backgroundColor: palette.surface,
+    backgroundColor: "transparent",
     borderColor: palette.border,
-    borderRadius: 10,
+    borderRadius: radii.button,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
+    justifyContent: "center",
+    minHeight: 56,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    width: "100%",
   },
-  disabled: { opacity: 0.5 },
-  label: { color: palette.text, fontSize: 14, fontWeight: "600" },
+  ghostLabel: {
+    color: palette.slate,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
   link: { paddingHorizontal: 4, paddingVertical: 2 },
-  linkLabel: { color: palette.accent, fontSize: 14, fontWeight: "600" },
-  pressed: { opacity: 0.8 },
-  primary: { backgroundColor: palette.accent, borderColor: "transparent" },
-  primaryLabel: { color: palette.accentText },
+  linkLabel: {
+    color: palette.graphite,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  pressed: { opacity: 0.85 },
+  // Filled pill — midnight ink, white 14/500, inset highlight elevation.
+  primary: {
+    alignItems: "center",
+    backgroundColor: palette.primary,
+    borderRadius: radii.button,
+    justifyContent: "center",
+    minHeight: 56,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    width: "100%",
+    ...shadows.primary,
+  },
+  primaryLabel: {
+    color: palette.onPrimary,
+    fontSize: 14,
+    fontWeight: "500",
+    lineHeight: 20,
+  },
 });
 
 export { Button, LinkButton };
