@@ -49,6 +49,12 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Build workspace libraries
+        # @category-labs/* exports resolve to dist/, which a fresh
+        # install does not contain. Without this, Metro fails with
+        # "@category-labs/mera/viem could not be found".
+        run: pnpm --filter "@category-labs/*" run build
+
       - name: Validate Android build settings
         working-directory: artifacts/mera-mobile
         shell: bash
