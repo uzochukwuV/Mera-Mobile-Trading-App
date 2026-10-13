@@ -1,20 +1,44 @@
 import type { ReactElement } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Card } from "../ui";
-import { palette, radii, spacing, text } from "../theme";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { tintForName } from "./coinMeta";
+import {
+  BG,
+  BORDER,
+  CARD,
+  DOWN,
+  INK,
+  MUTED,
+  SECONDARY,
+  TEAL,
+  UP,
+} from "./homeTheme";
 import type { CopyManagementProps, CopySettingRow } from "./types";
-
-const DEFAULT_COPIES: CopySettingRow[] = [
-  { leaderId: "satoshi-trades", handle: "satoshi-trades", allocation: "500.00", status: "Active" },
-  { leaderId: "macro-desk", handle: "macro-desk", allocation: "250.00", status: "Paused" },
-];
 
 function StatusTag({ status }: { status: CopySettingRow["status"] }) {
   const active = status === "Active";
   return (
-    <View style={[styles.tag, active ? styles.tagActive : styles.tagPaused]}>
-      <View style={[styles.tagDot, active ? styles.tagDotActive : styles.tagDotPaused]} />
-      <Text style={[styles.tagLabel, active ? styles.tagLabelActive : styles.tagLabelPaused]}>
+    <View
+      style={[
+        styles.tag,
+        { backgroundColor: active ? "rgba(52, 211, 153, 0.14)" : "rgba(251, 191, 36, 0.14)" },
+      ]}
+    >
+      <View
+        style={[
+          styles.tagDot,
+          { backgroundColor: active ? UP : "#FBBF24" },
+        ]}
+      />
+      <Text style={[styles.tagLabel, { color: active ? UP : "#FBBF24" }]}>
         {status}
       </Text>
     </View>
@@ -49,137 +73,223 @@ function MiniButton({
 
 export function CopyManagementScreen(props: CopyManagementProps = {}): ReactElement {
   const {
-    copies = DEFAULT_COPIES,
+    copies = [],
+    loading = false,
+    loadError = null,
+    refreshing = false,
+    onRefresh,
     onPause,
     onResume,
     onStop,
     onKillSwitch,
     onBack,
   } = props;
+  const isEmpty = copies.length === 0;
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={SECONDARY}
+            />
+          ) : undefined
+        }
+      >
         <Pressable
           accessibilityRole="button"
           hitSlop={8}
           onPress={() => onBack?.()}
           style={styles.back}
         >
-          <Text style={styles.backText}>‹ Back</Text>
+          <Ionicons name="chevron-back" size={20} color={SECONDARY} />
+          <Text style={styles.backLabel}>Back</Text>
         </Pressable>
         <Text style={styles.title}>Copying</Text>
 
-        {copies.map((copy) => (
-          <Card key={copy.leaderId} style={styles.card}>
-            <View style={styles.rowTop}>
-              <View style={styles.rowMain}>
-                <Text style={styles.handle}>{copy.handle}</Text>
-                <Text style={styles.allocation}>{copy.allocation} aUSD</Text>
+        {loading && isEmpty ? (
+          <View style={styles.loading}>
+            <ActivityIndicator size="large" color={INK} />
+            <Text style={styles.emptyBody}>Loading copies…</Text>
+          </View>
+        ) : loadError && isEmpty ? (
+          <View style={styles.loading}>
+            <Text style={styles.emptyTitle}>Couldn't load copies</Text>
+            <Text style={styles.emptyBody}>{loadError}</Text>
+            {onRefresh ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={onRefresh}
+                style={({ pressed }) => [
+                  styles.retry,
+                  pressed ? styles.pressed : null,
+                ]}
+              >
+                <Text style={styles.retryLabel}>Try again</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : (
+          <>
+            {loadError ? (
+              <View style={styles.notice}>
+                <Text style={styles.noticeText}>{loadError}</Text>
               </View>
-              <StatusTag status={copy.status} />
-            </View>
-            <View style={styles.actions}>
-              {copy.status === "Active" ? (
-                <MiniButton title="Pause" onPress={() => onPause?.(copy.leaderId)} />
-              ) : (
-                <MiniButton title="Resume" onPress={() => onResume?.(copy.leaderId)} />
-              )}
-              <MiniButton title="Stop" danger onPress={() => onStop?.(copy.leaderId)} />
-            </View>
-          </Card>
-        ))}
+            ) : null}
+            {isEmpty ? (
+              <View style={styles.card}>
+                <Text style={styles.emptyTitle}>Not copying anyone</Text>
+                <Text style={styles.emptyBody}>
+                  Find a trader on the Traders tab to start.
+                </Text>
+              </View>
+            ) : (
+              copies.map((copy) => {
+                const tint = tintForName(copy.handle);
+                return (
+                  <View key={copy.leaderId} style={styles.card}>
+                    <View style={styles.rowTop}>
+                      <View style={[styles.avatar, { backgroundColor: tint.bg }]}>
+                        <Text style={[styles.avatarText, { color: tint.fg }]}>
+                          {copy.handle.slice(0, 1).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.rowMain}>
+                        <Text style={styles.handle}>{copy.handle}</Text>
+                        <Text style={styles.allocation}>
+                          {copy.allocation} aUSD
+                        </Text>
+                      </View>
+                      <StatusTag status={copy.status} />
+                    </View>
+                    <View style={styles.actions}>
+                      {copy.status === "Active" ? (
+                        <MiniButton title="Pause" onPress={() => onPause?.(copy.leaderId)} />
+                      ) : (
+                        <MiniButton title="Resume" onPress={() => onResume?.(copy.leaderId)} />
+                      )}
+                      <MiniButton title="Stop" danger onPress={() => onStop?.(copy.leaderId)} />
+                    </View>
+                  </View>
+                );
+              })
+            )}
 
-        <Card style={styles.card}>
-          <Text style={styles.dangerTitle}>Stop everything</Text>
-          <Text style={text.caption}>Pauses every copy at once.</Text>
-          <Pressable
-            accessibilityRole="button"
-            onPress={onKillSwitch}
-            style={({ pressed }) => [styles.kill, pressed ? styles.pressed : null]}
-          >
-            <Text style={styles.killLabel}>Stop everything</Text>
-          </Pressable>
-        </Card>
+            <View style={styles.card}>
+              <Text style={styles.dangerTitle}>Stop everything</Text>
+              <Text style={styles.dangerBody}>Pauses every copy at once.</Text>
+              <Pressable
+                accessibilityRole="button"
+                onPress={onKillSwitch}
+                style={({ pressed }) => [styles.kill, pressed ? styles.pressed : null]}
+              >
+                <Text style={styles.killLabel}>Stop everything</Text>
+              </Pressable>
+            </View>
 
-        <Text style={styles.footnote}>Stopping keeps history.</Text>
+            <Text style={styles.footnote}>Stopping keeps history.</Text>
+          </>
+        )}
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  actions: { flexDirection: "row", gap: spacing.xs },
-  back: { alignSelf: "flex-start", paddingVertical: 4 },
-  backText: { color: palette.graphite, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  allocation: {
-    color: palette.ash,
-    fontSize: 12,
-    fontVariant: ["tabular-nums"],
-    fontWeight: "400",
-    lineHeight: 16,
+  actions: { flexDirection: "row", gap: 8 },
+  avatar: {
+    alignItems: "center",
+    borderRadius: 9999,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
-  card: { gap: spacing.sm },
-  dangerTitle: { color: palette.ink, fontSize: 14, fontWeight: "600", lineHeight: 19 },
-  footnote: { color: palette.ash, fontSize: 12, fontWeight: "400", lineHeight: 16 },
-  handle: { color: palette.ink, fontSize: 14, fontWeight: "600", lineHeight: 19 },
+  avatarText: { fontSize: 17, fontWeight: "700" },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
+  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  allocation: { color: MUTED, fontSize: 12, fontVariant: ["tabular-nums"], fontWeight: "400", lineHeight: 16 },
+  card: {
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16,
+  },
+  dangerBody: { color: MUTED, fontSize: 13, lineHeight: 19 },
+  dangerTitle: { color: INK, fontSize: 15, fontWeight: "700", lineHeight: 20 },
+  down: { color: DOWN },
+  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
+  footnote: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16, textAlign: "center" },
+  handle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
   kill: {
     alignItems: "center",
-    backgroundColor: "transparent",
-    borderColor: palette.error,
-    borderRadius: radii.button,
+    borderColor: DOWN,
+    borderRadius: 16,
     borderWidth: 1,
     justifyContent: "center",
     minHeight: 56,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
     width: "100%",
   },
-  killLabel: { color: palette.error, fontSize: 14, fontWeight: "500", lineHeight: 20 },
+  killLabel: { color: DOWN, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
   mini: {
     alignItems: "center",
-    borderRadius: radii.full,
+    borderRadius: 9999,
     borderWidth: 1,
     flex: 1,
     justifyContent: "center",
-    minHeight: 40,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    minHeight: 44,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  miniDanger: { backgroundColor: "transparent", borderColor: palette.error },
-  miniGhost: { backgroundColor: "transparent", borderColor: palette.border },
-  miniLabel: { fontSize: 12, fontWeight: "500", lineHeight: 16 },
-  miniLabelDanger: { color: palette.error },
-  miniLabelGhost: { color: palette.graphite },
-  pressed: { opacity: 0.85 },
+  miniDanger: { backgroundColor: "transparent", borderColor: DOWN },
+  miniGhost: { backgroundColor: "transparent", borderColor: BORDER },
+  miniLabel: { fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  miniLabelDanger: { color: DOWN },
+  miniLabelGhost: { color: SECONDARY },
+  notice: {
+    backgroundColor: "rgba(248, 113, 113, 0.10)",
+    borderColor: "rgba(248, 113, 113, 0.35)",
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 12,
+  },
+  noticeText: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 18, textAlign: "center" },
+  pressed: { opacity: 0.6 },
+  retry: {
+    alignItems: "center",
+    backgroundColor: CARD,
+    borderRadius: 9999,
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  retryLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
   rowMain: { flex: 1, gap: 2 },
-  rowTop: { alignItems: "center", flexDirection: "row", gap: spacing.sm },
-  screen: { backgroundColor: palette.bg, flex: 1 },
-  scroll: { gap: spacing.md, paddingBottom: spacing.xl, paddingHorizontal: spacing.md, paddingTop: spacing.md },
+  rowTop: { alignItems: "center", flexDirection: "row", gap: 12 },
+  screen: { backgroundColor: BG, flex: 1 },
+  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
   tag: {
     alignItems: "center",
     alignSelf: "flex-start",
-    borderRadius: radii.pill,
+    borderRadius: 9999,
     flexDirection: "row",
     gap: 6,
     paddingHorizontal: 10,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
-  tagActive: { backgroundColor: palette.okSoft },
-  tagDot: { borderRadius: radii.pill, height: 6, width: 6 },
-  tagDotActive: { backgroundColor: palette.forest },
-  tagDotPaused: { backgroundColor: palette.emberBrown },
-  tagLabel: { fontSize: 12, fontWeight: "500", lineHeight: 15 },
-  tagLabelActive: { color: palette.forest },
-  tagLabelPaused: { color: palette.emberBrown },
-  tagPaused: { backgroundColor: palette.sunlitCream },
-  title: {
-    color: palette.ink,
-    fontSize: 22,
-    fontWeight: "600",
-    letterSpacing: -0.37,
-    lineHeight: 31,
-  },
+  tagDot: { borderRadius: 9999, height: 6, width: 6 },
+  tagLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
+  title: { color: INK, fontSize: 24, fontWeight: "800", letterSpacing: -0.4, lineHeight: 32 },
+  up: { color: UP },
 });
 
 export default CopyManagementScreen;

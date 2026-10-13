@@ -1,8 +1,25 @@
 import { useState, type ReactElement } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Button } from "../Button";
-import { Card, TextField } from "../ui";
-import { palette, radii, spacing, text } from "../theme";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { coinColor } from "./coinMeta";
+import {
+  BG,
+  BORDER,
+  CARD,
+  CARD_SOFT,
+  DOWN,
+  INK,
+  MUTED,
+  SECONDARY,
+  UP,
+} from "./homeTheme";
 import type { TradeTicketProps } from "./types";
 
 const LEVERAGE_PRESETS = [5, 10, 15, 20];
@@ -17,20 +34,20 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
     side = "long",
     size = "",
     leverage = 10,
-    maxLeverage = 20,
+    maxLeverage = 50,
     busy = false,
     error = null,
-    onSideChange,
+    notice = null,
     onSizeChange,
     onLeverageChange,
     onSubmit,
     onDryRun,
     onBack,
   } = props;
-  void maxLeverage;
-  void onSideChange;
 
   const [marginMode, setMarginMode] = useState<MarginMode>("Market");
+  const visiblePresets = LEVERAGE_PRESETS.filter((p) => p <= maxLeverage);
+  const effectiveLeverage = Math.min(leverage, maxLeverage);
 
   const isLong = side === "long";
   const sideLabel = isLong ? "LONG" : "SHORT";
@@ -43,24 +60,31 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.headerRow}>
-          <Pressable
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={() => onBack?.()}
-          >
-            <Text style={styles.back}>‹ Back</Text>
-          </Pressable>
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          hitSlop={8}
+          onPress={() => onBack?.()}
+          style={styles.back}
+        >
+          <Ionicons name="chevron-back" size={20} color={SECONDARY} />
+          <Text style={styles.backLabel}>Back</Text>
+        </Pressable>
 
         <View style={styles.titleBlock}>
-          <Text style={text.title}>
-            {symbol} · {sideLabel}
-          </Text>
+          <View style={styles.titleRow}>
+            <View
+              style={[styles.coin, { backgroundColor: coinColor(symbol) }]}
+            >
+              <Text style={styles.coinText}>{symbol.slice(0, 1)}</Text>
+            </View>
+            <Text style={styles.title}>
+              {symbol} · {sideLabel}
+            </Text>
+          </View>
           <Text style={styles.price}>{mark}</Text>
         </View>
 
-        <Card style={styles.ticket}>
+        <View style={styles.ticket}>
           <View style={styles.chips}>
             {MARGIN_MODES.map((mode) => {
               const active = marginMode === mode;
@@ -72,7 +96,7 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
                   onPress={() => setMarginMode(mode)}
                   style={[
                     styles.chip,
-                    active ? styles.chipActive : styles.chipIdle,
+                    active ? styles.chipActive : null,
                   ]}
                 >
                   <Text
@@ -88,11 +112,13 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
           </View>
 
           <View style={styles.leverageBlock}>
-            <Text style={text.caption}>Select leverage</Text>
-            <Text style={styles.leverageReadout}>{leverage}X</Text>
+            <View style={styles.leverageHead}>
+              <Text style={styles.caption}>SELECT LEVERAGE</Text>
+              <Text style={styles.leverageReadout}>{effectiveLeverage}X</Text>
+            </View>
             <View style={styles.presets}>
-              {LEVERAGE_PRESETS.map((preset) => {
-                const active = leverage === preset;
+              {visiblePresets.map((preset) => {
+                const active = effectiveLeverage === preset;
                 return (
                   <Pressable
                     key={preset}
@@ -117,14 +143,19 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
                 );
               })}
             </View>
+            <Text style={styles.balance}>Max {maxLeverage}X on this market</Text>
           </View>
 
           <View style={styles.amountBlock}>
-            <TextField
-              label="Amount to trade"
+            <Text style={styles.caption}>AMOUNT TO TRADE</Text>
+            <TextInput
+              accessibilityLabel="Amount to trade"
+              editable={!busy}
               keyboardType="decimal-pad"
               onChangeText={(value) => onSizeChange?.(value)}
               placeholder="0.00"
+              placeholderTextColor={MUTED}
+              style={styles.input}
               value={size}
             />
             <Text style={styles.balance}>
@@ -132,7 +163,7 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
             </Text>
           </View>
 
-          <Card variant="muted" padding={spacing.md}>
+          <View style={styles.summary}>
             <View style={styles.kvRow}>
               <Text style={styles.kvLabel}>Trade value</Text>
               <Text style={styles.kvValue}>--</Text>
@@ -141,37 +172,45 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
               <Text style={styles.kvLabel}>Fees</Text>
               <Text style={styles.kvValue}>--</Text>
             </View>
-          </Card>
+          </View>
 
           {error ? (
             <View style={styles.errorCard}>
               <Text style={styles.errorText}>{error.message}</Text>
             </View>
           ) : null}
+          {notice ? (
+            <View style={styles.noticeCard}>
+              <Text style={styles.noticeText}>{notice}</Text>
+            </View>
+          ) : null}
 
-          {isLong ? (
-            <Button
-              title={confirmTitle}
-              primary
-              disabled={busy}
-              onPress={() => onSubmit?.()}
-            />
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              disabled={busy}
-              onPress={() => onSubmit?.()}
-              style={({ pressed }) => [
-                styles.shortBlock,
-                pressed ? styles.pressed : null,
-                busy ? styles.disabled : null,
-              ]}
-            >
-              <Text style={styles.shortLabel}>{confirmTitle}</Text>
-            </Pressable>
-          )}
-          <Button title="Dry run" onPress={() => onDryRun?.()} />
-        </Card>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={confirmTitle}
+            disabled={busy}
+            onPress={() => onSubmit?.()}
+            style={({ pressed }) => [
+              styles.confirm,
+              isLong ? styles.longBlock : styles.shortBlock,
+              busy || pressed ? styles.pressed : null,
+            ]}
+          >
+            <Text style={styles.confirmLabel}>{confirmTitle}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Dry run"
+            disabled={busy}
+            onPress={() => onDryRun?.()}
+            style={({ pressed }) => [
+              styles.dryRun,
+              busy || pressed ? styles.pressed : null,
+            ]}
+          >
+            <Text style={styles.dryRunLabel}>Dry run</Text>
+          </Pressable>
+        </View>
 
         <Text style={styles.lifecycle}>
           Market IOC · Worker executes in ~1s · pending → filled
@@ -181,66 +220,95 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
   );
 }
 
+const cardElevation = {
+  shadowColor: "#0F172A",
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.07,
+  shadowRadius: 18,
+  elevation: 3,
+} as const;
+
 const styles = StyleSheet.create({
-  amountBlock: { gap: spacing.xxs },
-  back: {
-    color: palette.graphite,
-    fontSize: 14,
-    fontWeight: "500",
-    lineHeight: 20,
-  },
-  balance: {
-    color: palette.ash,
-    fontSize: 12,
-    fontWeight: "400",
-    lineHeight: 16,
-  },
+  amountBlock: { gap: 8 },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
+  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  balance: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
+  caption: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 1, lineHeight: 14 },
   chip: {
     alignItems: "center",
-    borderRadius: radii.pill,
+    borderRadius: 9999,
     flex: 1,
     justifyContent: "center",
-    paddingVertical: spacing.sm,
+    paddingVertical: 10,
   },
-  chipActive: { backgroundColor: palette.surfaceStrong },
-  chipActiveLabel: {
-    color: palette.text,
-    fontSize: 13,
-    fontWeight: "500",
-    lineHeight: 18,
-  },
-  chipIdle: { backgroundColor: palette.surfaceMuted },
-  chipIdleLabel: {
-    color: palette.slate,
-    fontSize: 13,
-    fontWeight: "500",
-    lineHeight: 18,
-  },
+  chipActive: { backgroundColor: CARD, ...cardElevation },
+  chipActiveLabel: { color: INK, fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  chipIdleLabel: { color: MUTED, fontSize: 13, fontWeight: "600", lineHeight: 18 },
   chips: {
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: radii.pill,
+    backgroundColor: CARD_SOFT,
+    borderRadius: 9999,
     flexDirection: "row",
-    gap: spacing.xxs,
-    padding: spacing.xxs,
+    gap: 2,
+    padding: 4,
   },
-  disabled: { opacity: 0.45 },
+  coin: {
+    alignItems: "center",
+    borderRadius: 9999,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  coinText: { color: "#FFFFFF", fontSize: 18, fontWeight: "800" },
+  confirm: {
+    alignItems: "center",
+    borderRadius: 16,
+    justifyContent: "center",
+    minHeight: 56,
+    width: "100%",
+  },
+  confirmLabel: { color: "#FFFFFF", fontSize: 15, fontWeight: "700", lineHeight: 20 },
+  dryRun: {
+    alignItems: "center",
+    backgroundColor: CARD_SOFT,
+    borderRadius: 16,
+    justifyContent: "center",
+    minHeight: 52,
+    width: "100%",
+  },
+  dryRunLabel: { color: INK, fontSize: 14, fontWeight: "600", lineHeight: 20 },
   errorCard: {
-    backgroundColor: palette.errorSoft,
-    borderRadius: radii.lg,
-    padding: spacing.md,
+    backgroundColor: "rgba(217, 45, 32, 0.08)",
+    borderColor: "rgba(217, 45, 32, 0.30)",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
   },
-  errorText: {
-    color: palette.error,
-    fontSize: 13,
-    fontWeight: "500",
-    lineHeight: 18,
+  errorText: { color: DOWN, fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  noticeCard: {
+    backgroundColor: "rgba(23, 138, 76, 0.10)",
+    borderColor: "rgba(23, 138, 76, 0.30)",
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
   },
-  headerRow: { alignItems: "flex-start" },
-  kvLabel: {
-    color: palette.slate,
-    fontSize: 13,
-    fontWeight: "400",
-    lineHeight: 18,
+  noticeText: { color: UP, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  input: {    backgroundColor: BG,
+    borderColor: BORDER,
+    borderRadius: 14,
+    borderWidth: 1,
+    color: INK,
+    fontSize: 20,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  kvLabel: { color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 18 },
+  summary: {
+    backgroundColor: BG,
+    borderRadius: 14,
+    gap: 8,
+    padding: 12,
   },
   kvRow: {
     alignItems: "center",
@@ -248,86 +316,70 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   kvValue: {
-    color: palette.textSecondary,
+    color: INK,
     fontSize: 13,
-    fontWeight: "500",
+    fontWeight: "600",
     fontVariant: ["tabular-nums"],
     lineHeight: 18,
   },
-  leverageBlock: { gap: spacing.xs },
+  leverageBlock: { gap: 8 },
+  leverageHead: {
+    alignItems: "baseline",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
   leverageReadout: {
-    color: palette.text,
+    color: INK,
     fontSize: 22,
-    fontWeight: "600",
+    fontWeight: "800",
     fontVariant: ["tabular-nums"],
-    letterSpacing: -0.37,
-    lineHeight: 31,
+    letterSpacing: -0.4,
+    lineHeight: 30,
   },
   lifecycle: {
-    color: palette.ash,
+    color: MUTED,
     fontSize: 11,
     fontWeight: "500",
     lineHeight: 14,
     textAlign: "center",
   },
+  longBlock: { backgroundColor: UP },
   preset: {
     alignItems: "center",
-    borderRadius: radii.pill,
+    borderRadius: 9999,
     flex: 1,
     justifyContent: "center",
-    paddingVertical: spacing.xs,
+    paddingVertical: 10,
   },
-  presetActive: { backgroundColor: palette.accentSoft },
-  presetActiveLabel: {
-    color: palette.sky,
-    fontSize: 13,
-    fontWeight: "600",
-    fontVariant: ["tabular-nums"],
-    lineHeight: 18,
-  },
-  presetIdle: { backgroundColor: palette.surfaceMuted },
-  presetIdleLabel: {
-    color: palette.slate,
-    fontSize: 13,
-    fontWeight: "500",
-    fontVariant: ["tabular-nums"],
-    lineHeight: 18,
-  },
-  presets: { flexDirection: "row", gap: spacing.xs },
-  pressed: { opacity: 0.85 },
+  presetActive: { backgroundColor: INK },
+  presetActiveLabel: { color: "#FFFFFF", fontSize: 13, fontWeight: "700", fontVariant: ["tabular-nums"] },
+  presetIdle: { backgroundColor: CARD_SOFT },
+  presetIdleLabel: { color: SECONDARY, fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  presets: { flexDirection: "row", gap: 8 },
+  pressed: { opacity: 0.6 },
   price: {
-    color: palette.text,
-    fontSize: 29,
-    fontWeight: "600",
+    color: INK,
+    fontSize: 30,
+    fontWeight: "800",
     fontVariant: ["tabular-nums"],
-    letterSpacing: -0.52,
-    lineHeight: 35,
+    letterSpacing: -0.5,
+    lineHeight: 36,
   },
-  screen: { backgroundColor: palette.bg, flex: 1 },
-  scroll: {
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
+  screen: { backgroundColor: BG, flex: 1 },
+  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
+  shortBlock: { backgroundColor: DOWN },
+  ticket: {
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: 22,
+    borderWidth: 1,
+    gap: 14,
+    padding: 16,
+    ...cardElevation,
   },
-  shortBlock: {
-    alignItems: "center",
-    backgroundColor: palette.error,
-    borderRadius: radii.lg,
-    justifyContent: "center",
-    minHeight: 56,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.md,
-    width: "100%",
-  },
-  shortLabel: {
-    color: palette.onPrimary,
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 20,
-  },
-  ticket: { padding: spacing.lg },
-  titleBlock: { gap: 2 },
+  title: { color: INK, fontSize: 20, fontWeight: "800", letterSpacing: -0.4, lineHeight: 28 },
+  titleBlock: { gap: 4 },
+  titleRow: { alignItems: "center", flexDirection: "row", gap: 10 },
 });
 
 export default TradeTicketScreen;

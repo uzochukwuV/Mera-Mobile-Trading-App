@@ -1,215 +1,382 @@
-import { useState } from "react";
-import type { ReactElement } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Card, TextField } from "../ui";
-import { palette, radii, spacing, text } from "../theme";
+import { useCallback, useEffect, useState, type ReactElement } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { ApiError, getMarketsCached, toMarketRow } from "../api";
+import { TopFilterBar } from "./TabChrome";
+import { coinColor, coinName } from "./coinMeta";
+import {
+  BG,
+  BORDER,
+  CARD,
+  DOWN,
+  INK,
+  MUTED,
+  SECONDARY,
+  SHEET,
+  TEAL,
+  UP,
+} from "./homeTheme";
 import type { MarketRow, MarketsProps } from "./types";
 
-const DEFAULT_MARKETS: MarketRow[] = [
-  { id: 1, symbol: "BTC", mark: "67,410.5", changePct: 2.41, volume: "1.2B" },
-  { id: 2, symbol: "ETH", mark: "3,512.8", changePct: -1.12, volume: "890M" },
-  { id: 3, symbol: "SOL", mark: "172.44", changePct: 4.87, volume: "410M" },
-  { id: 4, symbol: "MON", mark: "5.42", changePct: 1.05, volume: "96M" },
-  { id: 5, symbol: "ZEC", mark: "58.20", changePct: -0.64, volume: "32M" },
-];
+// Mock stand-in for real holdings: "My Assets" narrows to these until the
+// backend supplies per-user positions.
+const HELD_SYMBOLS = ["BTC", "ETH", "SOL"];
 
-const CATEGORIES = ["All", "Hot", "New"] as const;
-type Category = (typeof CATEGORIES)[number];
+type Scope = "mine" | "all";
 
 function formatChange(changePct: number): string {
   return `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`;
 }
 
-function filterByCategory(markets: MarketRow[], category: Category): MarketRow[] {
-  if (category === "Hot") return markets.filter((row) => Math.abs(row.changePct) >= 1);
-  if (category === "New") return markets.filter((row) => row.id >= 4);
-  return markets;
-}
-
 export function MarketsScreen(props: MarketsProps = {}): ReactElement {
-  const {
-    markets = DEFAULT_MARKETS,
-    search = "",
-    onSearchChange,
-    onSelectMarket,
-  } = props;
-  const [category, setCategory] = useState<Category>("All");
-  const visible = filterByCategory(markets, category);
+  const { markets: marketsOverride, search = "", refreshToken = 0, onSearchChange, onSelectMarket } = props;
+  const [scope, setScope] = useState<Scope>("mine");
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [sortDesc, setSortDesc] = useState(true);
+  const [remote, setRemote] = useState<MarketRow[] | null>(
+    marketsOverride ?? null,
+  );
+  const [loading, setLoading] = useState(marketsOverride === undefined);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async (isRefresh: boolean): Promise<void> => {
+    if (marketsOverride !== undefined) return;
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+    setError(null);
+    try {
+      const markets = await getMarketsCached();
+      setRemote(markets.map(toMarketRow));
+    } catch (caught) {
+      setError(
+        caught instanceof ApiError ? caught.message : "Couldn't load markets",
+      );
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [marketsOverride]);
+
+  useEffect(() => {
+    void load(false);
+  }, [load, refreshToken]);
+
+  const rows = marketsOverride ?? remote ?? [];
+  const query = (search ?? "").trim().toUpperCase();
+
+  const visible = rows
+    .filter((row) =>
+      scope === "mine" ? HELD_SYMBOLS.includes(row.symbol.toUpperCase()) : true,
+    )
+    .filter((row) =>
+      query.length === 0
+        ? true
+        : row.symbol.toUpperCase().includes(query) ||
+          coinName(row.symbol).toUpperCase().includes(query),
+    )
+    .sort((a, b) => (sortDesc ? b.changePct - a.changePct : a.changePct - b.changePct));
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>Markets</Text>
-      <TextField
-        placeholder="Search markets"
-        value={search ?? ""}
-        onChangeText={onSearchChange ?? (() => {})}
+      <TopFilterBar
+        onSearch={() => setSearchOpen((open) => !open)}
+        onStocks={() => setScope("all")}
+        onMoreMarkets={() => setScope("all")}
       />
-      <View style={styles.chipsRow}>
-        {CATEGORIES.map((item) => {
-          const active = item === category;
-          return (
+      <View style={styles.sheet}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => void load(true)}
+              tintColor={SECONDARY}
+            />
+          }
+        >
+          <View style={styles.chipsRow}>
             <Pressable
-              key={item}
+              accessibilityLabel="Search tokens"
               accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              onPress={() => setCategory(item)}
+              hitSlop={8}
+              onPress={() => setSearchOpen((open) => !open)}
               style={({ pressed }) => [
-                styles.chip,
-                active ? styles.chipActive : styles.chipInactive,
+                styles.circleButton,
+                searchOpen ? styles.circleActive : null,
                 pressed ? styles.pressed : null,
               ]}
             >
-              <Text style={active ? styles.chipLabelActive : styles.chipLabelInactive}>
-                {item}
+              <Ionicons
+                name="search"
+                size={20}
+                color={searchOpen ? TEAL : SECONDARY}
+              />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Sort by change"
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => setSortDesc((desc) => !desc)}
+              style={({ pressed }) => [
+                styles.circleButton,
+                pressed ? styles.pressed : null,
+              ]}
+            >
+              <Ionicons name="swap-vertical" size={20} color={SECONDARY} />
+            </Pressable>
+            <Pressable
+              accessibilityLabel="My Assets"
+              accessibilityRole="button"
+              accessibilityState={{ selected: scope === "mine" }}
+              hitSlop={8}
+              onPress={() => setScope("mine")}
+              style={({ pressed }) => [
+                styles.pill,
+                scope === "mine" ? styles.pillActive : styles.pillIdle,
+                pressed ? styles.pressed : null,
+              ]}
+            >
+              <Ionicons
+                name="flame"
+                size={16}
+                color={scope === "mine" ? TEAL : MUTED}
+              />
+              <Text
+                style={
+                  scope === "mine" ? styles.pillActiveLabel : styles.pillIdleLabel
+                }
+              >
+                My Assets
               </Text>
             </Pressable>
-          );
-        })}
-      </View>
-      <Card style={styles.list} padding={spacing.sm}>
-        {visible.length === 0 ? (
-          <Text style={text.caption}>No markets found</Text>
-        ) : (
-          visible.map((row, index) => {
-            const up = row.changePct >= 0;
-            return (
-              <View key={row.id}>
-                {index > 0 ? <View style={styles.hairline} /> : null}
+            <Pressable
+              accessibilityLabel="All Tokens"
+              accessibilityRole="button"
+              accessibilityState={{ selected: scope === "all" }}
+              hitSlop={8}
+              onPress={() => setScope("all")}
+              style={({ pressed }) => [
+                styles.pill,
+                scope === "all" ? styles.pillActive : styles.pillIdle,
+                pressed ? styles.pressed : null,
+              ]}
+            >
+              <Ionicons
+                name="layers-outline"
+                size={16}
+                color={scope === "all" ? TEAL : MUTED}
+              />
+              <Text
+                style={
+                  scope === "all" ? styles.pillActiveLabel : styles.pillIdleLabel
+                }
+              >
+                All Tokens
+              </Text>
+            </Pressable>
+          </View>
+
+          {searchOpen ? (
+            <TextInput
+              accessibilityLabel="Search tokens"
+              autoFocus
+              onChangeText={onSearchChange ?? (() => {})}
+              placeholder="Search tokens"
+              placeholderTextColor={MUTED}
+              style={styles.searchInput}
+              value={search ?? ""}
+            />
+          ) : null}
+
+          <View style={styles.list}>
+            {loading ? (
+              <View style={styles.loading}>
+                <ActivityIndicator size="large" color={TEAL} />
+                <Text style={styles.emptyBody}>Loading live markets…</Text>
+              </View>
+            ) : error && visible.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>Couldn't load markets</Text>
+                <Text style={styles.emptyBody}>{error}</Text>
                 <Pressable
                   accessibilityRole="button"
-                  onPress={() => onSelectMarket?.(row.id)}
+                  onPress={() => void load(false)}
                   style={({ pressed }) => [
-                    styles.row,
+                    styles.retry,
                     pressed ? styles.pressed : null,
                   ]}
                 >
-                  <View style={styles.coin}>
-                    <Text style={styles.coinText}>
-                      {row.symbol.slice(0, 1)}
-                    </Text>
-                  </View>
-                  <View style={styles.rowMain}>
-                    <View style={styles.symbolRow}>
-                      <Text style={styles.symbol}>{row.symbol}</Text>
-                      <View style={styles.levTag}>
-                        <Text style={styles.levLabel}>{`${row.id * 5}x`}</Text>
-                      </View>
-                    </View>
-                    <Text style={styles.volume}>Vol {row.volume}</Text>
-                  </View>
-                  <View style={styles.rowRight}>
-                    <Text style={styles.mark}>{row.mark}</Text>
-                    <View
-                      style={[
-                        styles.pill,
-                        up ? styles.pillUp : styles.pillDown,
-                      ]}
-                    >
-                      <Text style={styles.pillLabel}>
-                        {formatChange(row.changePct)}
-                      </Text>
-                    </View>
-                  </View>
+                  <Text style={styles.retryLabel}>Try again</Text>
                 </Pressable>
               </View>
-            );
-          })
-        )}
-      </Card>
+            ) : visible.length === 0 ? (
+              <View style={styles.empty}>
+                <Text style={styles.emptyTitle}>No tokens found</Text>
+                <Text style={styles.emptyBody}>
+                  Try a different search or filter.
+                </Text>
+              </View>
+            ) : (
+              visible.map((row, index) => {
+                const up = row.changePct >= 0;
+                return (
+                  <View key={row.id}>
+                    {index > 0 ? <View style={styles.hairline} /> : null}
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => onSelectMarket?.(row.id, row.symbol)}
+                      style={({ pressed }) => [
+                        styles.row,
+                        pressed ? styles.pressed : null,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.coin,
+                          { backgroundColor: coinColor(row.symbol) },
+                        ]}
+                      >
+                        <Text style={styles.coinText}>
+                          {row.symbol.slice(0, 1)}
+                        </Text>
+                      </View>
+                      <View style={styles.rowMain}>
+                        <Text style={styles.name}>
+                          {coinName(row.symbol)}{" "}
+                          <Text style={styles.symbol}>{row.symbol}</Text>
+                        </Text>
+                        <Text style={styles.volume}>Vol {row.volume}</Text>
+                      </View>
+                      <View style={styles.rowRight}>
+                        <Text style={styles.mark}>{row.mark}</Text>
+                        <Text
+                          style={[
+                            styles.change,
+                            up ? styles.up : styles.down,
+                          ]}
+                        >
+                          {formatChange(row.changePct)}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </View>
+                );
+              })
+            )}
+          </View>
+        </ScrollView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  chip: {
-    borderRadius: radii.pill,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  change: { fontSize: 12, fontWeight: "500", lineHeight: 15 },
+  circleActive: { borderColor: TEAL },
+  circleButton: {
+    alignItems: "center",
+    backgroundColor: CARD,
+    borderColor: "transparent",
+    borderRadius: 9999,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
   },
-  chipActive: { backgroundColor: palette.ink },
-  chipInactive: { backgroundColor: palette.surfaceMuted },
-  chipLabelActive: {
-    color: palette.bg,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
+  chipsRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 6,
   },
-  chipLabelInactive: {
-    color: palette.graphite,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
-  },
-  chipsRow: { flexDirection: "row", gap: spacing.xs },
   coin: {
     alignItems: "center",
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: radii.full,
-    height: 40,
+    borderRadius: 9999,
+    height: 46,
     justifyContent: "center",
-    width: 40,
+    width: 46,
   },
-  coinText: { color: palette.ink, fontSize: 15, fontWeight: "600" },
-  hairline: { backgroundColor: palette.border, height: 1, width: "100%" },
-  levLabel: {
-    color: palette.warning,
-    fontSize: 11,
-    fontWeight: "500",
-    lineHeight: 14,
-  },
-  levTag: {
-    backgroundColor: palette.warningSoft,
-    borderRadius: radii.pill,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-  },
-  list: { gap: 0 },
+  coinText: { color: "#FFFFFF", fontSize: 18, fontWeight: "800" },
+  down: { color: DOWN },
+  empty: { gap: 4, padding: 8 },
+  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19 },
+  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22 },
+  hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
+  list: { paddingHorizontal: 24 },
+  loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
   mark: {
-    color: palette.ink,
-    fontSize: 15,
-    fontWeight: "600",
+    color: INK,
+    fontSize: 16,
+    fontWeight: "700",
     fontVariant: ["tabular-nums"],
     lineHeight: 20,
   },
+  name: { color: INK, fontSize: 16, fontWeight: "700", lineHeight: 21 },
   pill: {
-    alignSelf: "flex-end",
-    borderRadius: radii.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    alignItems: "center",
+    borderRadius: 9999,
+    flexDirection: "row",
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   },
-  pillDown: { backgroundColor: palette.error },
-  pillLabel: {
-    color: palette.textInverse,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
-  },
-  pillUp: { backgroundColor: palette.forest },
+  pillActive: { backgroundColor: "rgba(94, 234, 212, 0.12)" },
+  pillActiveLabel: { color: TEAL, fontSize: 13, fontWeight: "600" },
+  pillIdle: { backgroundColor: "transparent" },
+  pillIdleLabel: { color: SECONDARY, fontSize: 13, fontWeight: "500" },
   pressed: { opacity: 0.85 },
+  retry: {
+    alignItems: "center",
+    backgroundColor: CARD,
+    borderRadius: 9999,
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  retryLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
   row: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
+    gap: 12,
+    paddingVertical: 14,
   },
-  rowMain: { flex: 1, gap: 2 },
-  rowRight: { alignItems: "flex-end", gap: 6 },
-  screen: {
-    backgroundColor: palette.bg,
+  rowMain: { flex: 1, gap: 3 },
+  rowRight: { alignItems: "flex-end", gap: 4 },
+  screen: { backgroundColor: BG, flex: 1 },
+  scroll: { gap: 12, paddingBottom: 28 },
+  searchInput: {
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: 14,
+    borderWidth: 1,
+    color: INK,
+    fontSize: 15,
+    marginHorizontal: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  sheet: {
+    backgroundColor: SHEET,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     flex: 1,
-    gap: spacing.md,
-    padding: spacing.md,
+    overflow: "hidden",
+    paddingTop: 12,
   },
-  symbol: { color: palette.ink, fontSize: 14, fontWeight: "600", lineHeight: 19 },
-  symbolRow: { alignItems: "center", flexDirection: "row", gap: spacing.xs },
-  title: {
-    color: palette.ink,
-    fontSize: 22,
-    fontWeight: "600",
-    letterSpacing: -0.37,
-    lineHeight: 31,
-  },
-  volume: { color: palette.slate, fontSize: 12, fontWeight: "400", lineHeight: 16 },
+  symbol: { color: SECONDARY, fontSize: 14, fontWeight: "500" },
+  up: { color: UP },
+  volume: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
 });
 
 export default MarketsScreen;

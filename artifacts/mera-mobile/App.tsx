@@ -5,10 +5,66 @@ import {
   resolveEvmContext,
 } from "@category-labs/mera-demo-shared/network";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, StatusBar, StyleSheet, Text, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { isAddressEqual } from "viem";
 import { type AccountState } from "./src/account";
+import {
+  ApiError,
+  deleteCopy,
+  enrollKey,
+  followLeader,
+  generateEdKeypair,
+  getAccountCreation,
+  getAccounts,
+  getCopySettings,
+  getFollows,
+  getLeader,
+  getLeaders,
+  getMarketsCached,
+  getMe,
+  getMyTournamentEntries,
+  getTournaments,
+  getTrades,
+  importKey,
+  joinTournament,
+  killSwitch,
+  linkWallet,
+  loadLiveDashboard,
+  markNotificationsRead,
+  orderSide,
+  orderTimeLabel,
+  putCopySettings,
+  putLeaderProfile,
+  requestEnrollPayload,
+  revokeAccount,
+  setCopyEnabled,
+  setOrderForwarding,
+  signEnrollTypedData,
+  signPopDigest,
+  submitOrder,
+  unfollowLeader,
+  updateHandle,
+  type LiveDashboard,
+} from "./src/api";
+import type { LeaderRow, TradeFillRow } from "./src/screens/types";
+import {
+  createAccount,
+  describeError,
+  signIn,
+  unlockStoredWallet,
+} from "./src/wallet";
+import { clearSession, ensureSession } from "./src/session";
+import { feed } from "./src/realtime";
+import { toViemAccount } from "@category-labs/mera/viem";
 import { clearStoredAccount, loadStoredAccount } from "./src/storage";
 import {
   AccountScreen,
@@ -16,6 +72,7 @@ import {
   CopyManagementScreen,
   DashboardScreen,
   DiscoverScreen,
+  ExportScreen,
   FundScreen,
   MarketsScreen,
   OnboardingScreen,
@@ -25,13 +82,9 @@ import {
   TradesScreen,
   TraderProfileScreen,
   TournamentsScreen,
+  WithdrawScreen,
 } from "./src/screens";
-import { palette, radii, spacing } from "./src/theme";
-import {
-  describeError,
-  signIn,
-  unlockStoredWallet,
-} from "./src/wallet";
+import { spacing } from "./src/theme";
 
 // UI-only tour router (no backend): tabs per appflow §6 — Home · Markets ·
 // Traders · Contests · Account — with stack pushes for detail screens and
@@ -44,17 +97,24 @@ type StackKey =
   | "ticket"
   | "trades"
   | "profile"
-  | "copies";
+  | "copies"
+  | "export"
+  | "withdraw";
 type Tour = { tab: TabKey; stack: StackKey[] };
 
-type OnboardingPending = "signin" | "unlock" | null;
+type OnboardingPending = "create" | "signin" | "unlock" | null;
 
-const TABS: { key: TabKey; label: string; glyph: string }[] = [
-  { key: "dashboard", label: "Home", glyph: "●" },
-  { key: "markets", label: "Markets", glyph: "◐" },
-  { key: "discover", label: "Traders", glyph: "○" },
-  { key: "contests", label: "Contests", glyph: "✦" },
-  { key: "account", label: "Account", glyph: "◉" },
+const TABS: {
+  key: TabKey;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconOutline: keyof typeof Ionicons.glyphMap;
+}[] = [
+  { key: "dashboard", label: "Home", icon: "home", iconOutline: "home-outline" },
+  { key: "markets", label: "Markets", icon: "stats-chart", iconOutline: "stats-chart-outline" },
+  { key: "discover", label: "Traders", icon: "people", iconOutline: "people-outline" },
+  { key: "contests", label: "Contests", icon: "trophy", iconOutline: "trophy-outline" },
+  { key: "account", label: "Account", icon: "person", iconOutline: "person-outline" },
 ];
 
 function truncate(address: string): string {
@@ -68,6 +128,93 @@ export default function App() {
   const [pending, setPending] = useState<OnboardingPending>(null);
   const [onboardingError, setOnboardingError] = useState<string | null>(null);
   const [tour, setTour] = useState<Tour | null>(null);
+  const [selectedMarketId, setSelectedMarketId] = useState<number | undefined>(
+    undefined,
+  );
+  const [selectedMarketSymbol, setSelectedMarketSymbol] = useState<string | undefined>(
+    undefined,
+  );
+  // Trade ticket (S8).
+  const [ticketSide, setTicketSide] = useState<"long" | "short">("long");
+  const [ticketSize, setTicketSize] = useState("");
+  const [ticketLeverage, setTicketLeverage] = useState(10);
+  const [ticketMaxLeverage, setTicketMaxLeverage] = useState(20);
+  const [ticketBusy, setTicketBusy] = useState(false);
+  const [ticketError, setTicketError] = useState<string | null>(null);
+  const [ticketNotice, setTicketNotice] = useState<string | null>(null);
+  // Live backend state (silent anon session + dashboard).
+  const [supaReady, setSupaReady] = useState(false);
+  const [dash, setDash] = useState<LiveDashboard | null>(null);
+  const [dashLoading, setDashLoading] = useState(false);
+  const [dashRefreshing, setDashRefreshing] = useState(false);
+  const [dashError, setDashError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  // Perpl connect state (S3): unknown until the first key list loads.
+  const [perpl, setPerpl] = useState<{
+    state: "unknown" | "unconnected" | "connected";
+    hasTradeKey: boolean;
+    keyCount: number;
+  }>({ state: "unknown", hasTradeKey: false, keyCount: 0 });
+  const [connectBusy, setConnectBusy] = useState(false);
+  const [connectError, setConnectError] = useState<string | null>(null);
+  const [perplAccounts, setPerplAccounts] = useState<
+    { id: string; label: string }[]
+  >([]);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [profileSaveError, setProfileSaveError] = useState<string | null>(null);
+  // Live trades feed (S9) + kill switch (S5/S12).
+  const [fills, setFills] = useState<TradeFillRow[]>([]);
+  const [tradesLoading, setTradesLoading] = useState(false);
+  const [tradesRefreshing, setTradesRefreshing] = useState(false);
+  const [tradesError, setTradesError] = useState<string | null>(null);
+  const [tradesLoaded, setTradesLoaded] = useState(false);
+  const [killError, setKillError] = useState<string | null>(null);
+  // Realtime tick counters (screens reload on change).
+  const [marketsTick, setMarketsTick] = useState(0);
+  const [pairTick, setPairTick] = useState(0);
+  const rtTimers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  // Fund metadata + own handle.
+  const [minDeposit, setMinDeposit] = useState("100");
+  const [meHandle, setMeHandle] = useState<string | null>(null);
+  const [savingHandle, setSavingHandle] = useState(false);
+  const [handleError, setHandleError] = useState<string | null>(null);
+  // Leaders + copy (S10/S11/S12).
+  const [leaders, setLeaders] = useState<LeaderRow[]>([]);
+  const [leaderSort, setLeaderSort] = useState("PnL");
+  const [leadersLoadedSort, setLeadersLoadedSort] = useState<string | null>(null);
+  const [leadersLoading, setLeadersLoading] = useState(false);
+  const [leadersRefreshing, setLeadersRefreshing] = useState(false);
+  const [leadersError, setLeadersError] = useState<string | null>(null);
+  const [selectedLeaderId, setSelectedLeaderId] = useState<string | null>(null);
+  const [profile, setProfile] = useState<{
+    handle: string;
+    bio: string;
+    pnl30d: string;
+    pnlUp: boolean;
+    pnl24h: string;
+    winRate: string;
+    sharpe: string;
+    followers: string;
+    following: boolean;
+    positions: { symbol: string; side: "Long" | "Short"; size: string; mark?: string; pnl: string; pnlUp: boolean }[];
+    fills: { market: string; side: string; price: string; time: string }[];
+  } | null>(null);
+  const [profileFor, setProfileFor] = useState<string | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [allocation, setAllocation] = useState("");
+  const [copyBusy, setCopyBusy] = useState(false);
+  const [copyError, setCopyError] = useState<string | null>(null);
+  const [copies, setCopies] = useState<
+    { leaderId: string; handle: string; allocation: string; status: "Active" | "Paused" }[]
+  >([]);
+  const [copiesLoaded, setCopiesLoaded] = useState(false);
+  const [copiesLoading, setCopiesLoading] = useState(false);
+  const [copiesRefreshing, setCopiesRefreshing] = useState(false);
+  const [copiesError, setCopiesError] = useState<string | null>(null);
+  const leaderSortRef = useRef(leaderSort);
+  leaderSortRef.current = leaderSort;
   const accountRef = useRef(account);
   accountRef.current = account;
 
@@ -83,6 +230,80 @@ export default function App() {
     accountRef.current = next;
     setAccount(next);
   }, []);
+
+  // S2: silent anonymous session on launch — the transport identity
+  // behind every backend call. Never blocks the UI.
+  useEffect(() => {
+    let stale = false;
+    ensureSession()
+      .catch(() => undefined)
+      .finally(() => {
+        if (!stale) setSupaReady(true);
+      });
+    return () => {
+      stale = true;
+    };
+  }, []);
+
+  function currentAddress(): string | undefined {
+    const current = accountRef.current;
+    return current?.status === "unlocked" ? current.wallet.address : undefined;
+  }
+
+  const loadDashboard = useCallback(
+    async (address: string | undefined, refresh: boolean): Promise<void> => {
+      if (refresh) setDashRefreshing(true);
+      else setDashLoading(true);
+      setDashError(null);
+      try {
+        const { data, error } = await loadLiveDashboard(address);
+        setDash(data);
+        // A backend error with no cached data surfaces; pull-to-refresh
+        // retries. On-chain balance still shows when present.
+        setDashError(error);
+      } catch (caught) {
+        setDashError(describeError(caught));
+      } finally {
+        setDashLoading(false);
+        setDashRefreshing(false);
+      }
+    },
+    [],
+  );
+
+  // First live load once the session exists and Home is reachable.
+  useEffect(() => {
+    if (!supaReady || dash !== null || dashLoading || dashError !== null) return;
+    if (account?.status === "unlocked" || tour !== null) {
+      void loadDashboard(currentAddress(), false);
+    }
+  }, [supaReady, account, tour, dash, dashLoading, dashError, loadDashboard]);
+
+  const loadPerpl = useCallback(async (): Promise<void> => {
+    try {
+      const accounts = await getAccounts();
+      const active = accounts.filter((a) => a.status === "active");
+      setPerpl({
+        state: active.length > 0 ? "connected" : "unconnected",
+        hasTradeKey: active.some((a) => (a.scope_mask & 2) === 2),
+        keyCount: active.length,
+      });
+      setPerplAccounts(
+        active.map((a) => ({
+          id: a.id,
+          label: a.label ?? `Key ${a.id.slice(0, 6)}`,
+        })),
+      );
+    } catch {
+      // Key status stays unknown; connect entries remain available.
+    }
+  }, []);
+
+  // First key-list load with the session.
+  useEffect(() => {
+    if (!supaReady) return;
+    void loadPerpl();
+  }, [supaReady, loadPerpl]);
 
   // S0: launch lands in the locked state (or signed out) with no biometric
   // prompt: only the ungated metadata is read here.
@@ -142,6 +363,155 @@ export default function App() {
     [],
   );
 
+  // S2b: bind wallet ↔ anonymous user in the background (challenge →
+  // EIP-191 sign via the mera session → link). Never blocks the UI;
+  // failures surface as a dashboard banner with retry on refresh.
+  async function linkAndLoad(address: string): Promise<void> {
+    try {
+      const current = accountRef.current;
+      if (current?.status !== "unlocked") return;
+      const viemAccount = toViemAccount(current.wallet.session);
+      await linkWallet(address, (message: string) =>
+        viemAccount.signMessage({ message }),
+      );
+      setLinkError(null);
+    } catch (caught) {
+      setLinkError(
+        `Wallet sync failed (${describeError(caught)}) — pull to refresh to retry.`,
+      );
+    } finally {
+      await loadDashboard(address, false);
+      await loadPerpl();
+    }
+  }
+
+  // S3: full enroll — fresh device keypair → payload → wallet signature
+  // + proof-of-possession → enroll. 404 (no on-chain account) → fund.
+  // 409 (key taken) → fresh keypair, retry once.
+  async function handleEnrollNew(): Promise<void> {
+    const address = currentAddress();
+    if (!address) {
+      setTour(null);
+      return;
+    }
+    const current = accountRef.current;
+    if (current?.status !== "unlocked") {
+      setTour(null);
+      return;
+    }
+    const walletSession = current.wallet.session;
+    setConnectBusy(true);
+    setConnectError(null);
+    const attempt = async (): Promise<void> => {
+      const { privateKeyHex, publicKeyHex } = await generateEdKeypair();
+      const payload = await requestEnrollPayload({
+        address,
+        publicKey: publicKeyHex,
+        scopeMask: 3,
+        label: "Perpl Arena",
+      });
+      const signature = await signEnrollTypedData(
+        walletSession,
+        payload.typedData,
+      );
+      const popSignature = await signPopDigest(
+        privateKeyHex,
+        payload.typedData,
+      );
+      await enrollKey({
+        address,
+        typedData: payload.typedData,
+        mac: payload.mac,
+        signature,
+        popSignature,
+        privateKey: privateKeyHex,
+        label: "Perpl Arena",
+      });
+    };
+    const succeed = async (): Promise<void> => {
+      await loadPerpl();
+      await loadDashboard(address, false);
+      setTour({ tab: "dashboard", stack: [] });
+    };
+    try {
+      await attempt();
+      await succeed();
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 404) {
+        push("fund");
+        return;
+      }
+      if (caught instanceof ApiError && caught.code === "key_taken") {
+        try {
+          await attempt();
+          await succeed();
+          return;
+        } catch (retryCaught) {
+          setConnectError(describeError(retryCaught));
+          return;
+        }
+      }
+      if (caught instanceof ApiError && caught.code === "key_limit") {
+        setConnectError(
+          "Key limit reached — revoke an existing key at testnet.perpl.xyz/apikeys, then try again.",
+        );
+        return;
+      }
+      setConnectError(describeError(caught));
+    } finally {
+      setConnectBusy(false);
+    }
+  }
+
+  async function handleImportKey(input: {
+    apiKey: string;
+    privateKey: string;
+  }): Promise<void> {
+    const address = currentAddress();
+    if (!address) {
+      setTour(null);
+      return;
+    }
+    setConnectBusy(true);
+    setConnectError(null);
+    try {
+      await importKey({
+        address,
+        apiKey: input.apiKey,
+        privateKey: input.privateKey,
+        scopeMask: 3,
+        label: "Perpl Arena",
+      });
+      await loadPerpl();
+      await loadDashboard(address, false);
+      setTour({ tab: "dashboard", stack: [] });
+    } catch (caught) {
+      setConnectError(describeError(caught));
+    } finally {
+      setConnectBusy(false);
+    }
+  }
+
+  const openFundSite = useCallback((): void => {
+    void Linking.openURL("https://testnet.perpl.xyz").catch(() => undefined);
+  }, []);
+
+  // S1: "Get Mera wallet" creates a new passkey; "Recover wallet" asserts
+  // with a synced passkey on a new device. No backend calls.
+  async function handleCreate(): Promise<void> {
+    setPending("create");
+    setOnboardingError(null);
+    try {
+      const wallet = await createAccount();
+      replaceAccount({ status: "unlocked", wallet });
+      void linkAndLoad(wallet.address);
+    } catch (caught) {
+      setOnboardingError(describeError(caught));
+    } finally {
+      setPending(null);
+    }
+  }
+
   // S1: the passkey ceremony is the sole visible auth. Both entries run
   // the assertion — sign-in on this device, recovery via a synced
   // passkey on a new one. No backend calls: S2/S2b stay silent.
@@ -151,6 +521,7 @@ export default function App() {
     try {
       const wallet = await signIn();
       replaceAccount({ status: "unlocked", wallet });
+      void linkAndLoad(wallet.address);
     } catch (caught) {
       setOnboardingError(describeError(caught));
     } finally {
@@ -181,6 +552,7 @@ export default function App() {
         return;
       }
       replaceAccount({ status: "unlocked", wallet: unlocked });
+      void linkAndLoad(unlocked.address);
     } catch (caught) {
       setOnboardingError(describeError(caught));
     } finally {
@@ -188,11 +560,26 @@ export default function App() {
     }
   }
 
-  async function handleSignOut(): Promise<void> {
-    setPending("unlock");
+  // Lock: back to the locked state rendered from stored metadata.
+  // The stored wallet stays on device; biometrics fire on Unlock.
+  async function handleLock(): Promise<void> {
+    try {
+      const stored = await loadStoredAccount();
+      replaceAccount(
+        stored === undefined ? { status: "none" } : { status: "locked", ...stored },
+      );
+    } catch {
+      replaceAccount({ status: "none" });
+    }
+    setTour(null);
+  }
+
+  async function handleSignOut(): Promise<void> {    setPending("unlock");
     setOnboardingError(null);
     try {
       await clearStoredAccount();
+      // S2: sign-out clears the Supabase session and ends the mera session.
+      await clearSession();
     } catch (caught) {
       setOnboardingError(describeError(caught));
       return;
@@ -201,15 +588,523 @@ export default function App() {
     }
     replaceAccount({ status: "none" });
     setTour(null);
+    setDash(null);
+    setDashError(null);
+    setLinkError(null);
+    setPerpl({ state: "unknown", hasTradeKey: false, keyCount: 0 });
+    setConnectError(null);
+    setMeHandle(null);
+    setHandleError(null);
+  }
+
+  const loadTrades = useCallback(async (refresh: boolean): Promise<void> => {
+    if (refresh) setTradesRefreshing(true);
+    else setTradesLoading(true);
+    setTradesError(null);
+    try {
+      const { fills: rows, error } = await getTrades();
+      setFills(rows);
+      setTradesError(error);
+      setTradesLoaded(true);
+      // Viewing activity clears the badge (best-effort, silent).
+      if (!error) {
+        markNotificationsRead()
+          .then(() => {
+            setDash((current) =>
+              current === null ? current : { ...current, unread: 0 },
+            );
+          })
+          .catch(() => undefined);
+      }
+    } catch (caught) {
+      setTradesError(describeError(caught));
+    } finally {
+      setTradesLoading(false);
+      setTradesRefreshing(false);
+    }
+  }, []);
+
+  const LEADER_SORT_PARAM: Record<string, "pnl" | "pnl24h" | "winRate" | "sharpe" | "followers"> = {
+    PnL: "pnl",
+    "24h": "pnl24h",
+    "Win rate": "winRate",
+    Sharpe: "sharpe",
+    Followers: "followers",
+  };
+
+  function formatSignedMoney(value: number | string | null | undefined): { text: string; up: boolean } {
+    const num = Number(value ?? NaN);
+    if (!Number.isFinite(num)) return { text: "—", up: true };
+    const abs = Math.abs(num).toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return { text: `${num < 0 ? "-" : "+"}${abs}`, up: num >= 0 };
+  }
+
+  const loadLeaders = useCallback(
+    async (sort: string, refresh: boolean): Promise<void> => {
+      if (refresh) setLeadersRefreshing(true);
+      else setLeadersLoading(true);
+      setLeadersError(null);
+      try {
+        const rows = await getLeaders(LEADER_SORT_PARAM[sort] ?? "pnl");
+        setLeaders(
+          rows.map((row) => {
+            const pnl = formatSignedMoney(row.total_pnl_usd);
+            return {
+              id: row.user_id,
+              handle: row.handle,
+              pnl30d: pnl.text,
+              pnlUp: pnl.up,
+              winRate:
+                typeof row.win_rate === "number"
+                  ? `${Math.round(row.win_rate * 100)}%`
+                  : "—",
+              followers: Number(row.followers_count ?? 0).toLocaleString("en-US"),
+            };
+          }),
+        );
+        setLeadersLoadedSort(sort);
+      } catch (caught) {
+        setLeadersError(describeError(caught));
+      } finally {
+        setLeadersLoading(false);
+        setLeadersRefreshing(false);
+      }
+    },
+    [],
+  );
+
+  const loadProfile = useCallback(async (id: string): Promise<void> => {
+    setProfileLoading(true);
+    setProfileError(null);
+    try {
+      const [detail, follows, markets] = await Promise.all([
+        getLeader(id),
+        getFollows(),
+        getMarketsCached().catch(() => []),
+      ]);
+      const decimals = new Map(
+        markets.map((m) => [
+          m.market_id,
+          { price: m.price_decimals, size: m.size_decimals, symbol: m.symbol },
+        ]),
+      );
+      const profile = detail.profile;
+      const pnl = formatSignedMoney(profile.total_pnl_usd);
+      const positions = detail.positions.map((p) => {
+        const dec = decimals.get(p.market_id) ?? { price: 2, size: 0, symbol: p.symbol ?? `M${p.market_id}` };
+        const size = Number(p.size_scaled) / 10 ** dec.size;
+        const entry = Number(p.entry_price_scaled) / 10 ** dec.price;
+        const last = p.last_price === null ? NaN : Number(p.last_price) / 10 ** dec.price;
+        const long = String(p.side).toLowerCase() === "long";
+        const pnlValue =
+          Number.isFinite(size) && Number.isFinite(entry) && Number.isFinite(last)
+            ? (long ? 1 : -1) * (last - entry) * size
+            : NaN;
+        const row = formatSignedMoney(pnlValue);
+        const digits = 5;
+        return {
+          symbol: p.symbol ?? dec.symbol,
+          side: (long ? "Long" : "Short") as "Long" | "Short",
+          size: Number.isFinite(size)
+            ? size.toLocaleString("en-US", { maximumFractionDigits: 6 })
+            : "—",
+          mark: Number.isFinite(last)
+            ? last.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: digits })
+            : undefined,
+          pnl: row.text,
+          pnlUp: row.up,
+        };
+      });
+      const fills = detail.recentFills.map((f) => {
+        const dec = decimals.get(f.market_id) ?? { price: 2, size: 0, symbol: `M${f.market_id}` };
+        const price = Number(f.price_scaled) / 10 ** dec.price;
+        const side = orderSide(f.order_type);
+        return {
+          market: dec.symbol,
+          side: side ?? "Long",
+          price: Number.isFinite(price)
+            ? price.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 5 })
+            : "Market",
+          time: orderTimeLabel(f.at),
+        };
+      });
+      setProfile({
+        handle: profile.handle,
+        bio: profile.bio ?? "",
+        pnl30d: pnl.text,
+        pnlUp: pnl.up,
+        pnl24h: formatSignedMoney(profile.pnl_24h_usd).text,
+        winRate:
+          typeof profile.win_rate === "number"
+            ? `${Math.round(profile.win_rate * 100)}%`
+            : "—",
+        sharpe:
+          typeof profile.sharpe === "number" ? profile.sharpe.toFixed(2) : "—",
+        followers: Number(profile.followers_count ?? 0).toLocaleString("en-US"),
+        following: follows.some(
+          (f) => (f.leader_id ?? f.user_id) === id,
+        ),
+        positions,
+        fills,
+      });
+      setProfileFor(id);
+    } catch (caught) {
+      setProfileError(describeError(caught));
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  const loadCopies = useCallback(async (refresh: boolean): Promise<void> => {
+    if (refresh) setCopiesRefreshing(true);
+    else setCopiesLoading(true);
+    setCopiesError(null);
+    try {
+      const settings = await getCopySettings();
+      setCopies(
+        settings.map((s) => ({
+          leaderId: s.leader_id,
+          handle: s.leader_handle ?? s.handle ?? `trader-${s.leader_id.slice(0, 6)}`,
+          allocation: Number(s.allocation_usd).toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          }),
+          status: (s.paused_reason || s.enabled === false ? "Paused" : "Active") as
+            | "Paused"
+            | "Active",
+        })),
+      );
+      setCopiesLoaded(true);
+    } catch (caught) {
+      setCopiesError(describeError(caught));
+    } finally {
+      setCopiesLoading(false);
+      setCopiesRefreshing(false);
+    }
+  }, []);
+
+  async function handleFollowToggle(): Promise<void> {
+    if (!selectedLeaderId || !profile) return;
+    setCopyBusy(true);
+    try {
+      if (profile.following) {
+        await unfollowLeader(selectedLeaderId);
+      } else {
+        await followLeader(selectedLeaderId);
+      }
+      await loadProfile(selectedLeaderId);
+      void loadLeaders(leaderSort, true);
+    } catch (caught) {
+      setCopyError(describeError(caught));
+    } finally {
+      setCopyBusy(false);
+    }
+  }
+
+  // S11: follow (required) then PUT copy settings. No trade key → S3.
+  async function handleStartCopy(): Promise<void> {
+    if (!selectedLeaderId) return;
+    const amount = Number(allocation);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setCopyError("Enter an allocation amount in aUSD.");
+      return;
+    }
+    if (!perpl.hasTradeKey) {
+      openConnect();
+      return;
+    }
+    setCopyBusy(true);
+    setCopyError(null);
+    try {
+      if (!profile?.following) {
+        await followLeader(selectedLeaderId);
+      }
+      await putCopySettings(selectedLeaderId, { allocationUsd: amount });
+      setAllocation("");
+      await loadCopies(false);
+      await loadDashboard(currentAddress(), true);
+      push("copies");
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "no_trade_key") {
+        openConnect();
+        return;
+      }
+      setCopyError(describeError(caught));
+    } finally {
+      setCopyBusy(false);
+    }
+  }
+
+  async function handleCopyPause(leaderId: string): Promise<void> {
+    try {
+      await setCopyEnabled(leaderId, false);
+      await loadCopies(true);
+      await loadDashboard(currentAddress(), true);
+    } catch (caught) {
+      setCopiesError(describeError(caught));
+    }
+  }
+
+  async function handleCopyResume(leaderId: string): Promise<void> {
+    try {
+      await setCopyEnabled(leaderId, true);
+      await loadCopies(true);
+      await loadDashboard(currentAddress(), true);
+    } catch (caught) {
+      setCopiesError(describeError(caught));
+    }
+  }
+
+  async function handleCopyStop(leaderId: string): Promise<void> {
+    try {
+      await deleteCopy(leaderId);
+      await loadCopies(true);
+      await loadDashboard(currentAddress(), true);
+    } catch (caught) {
+      setCopiesError(describeError(caught));
+    }
+  }
+
+  // Kill switch: pause all copying server-side, then refresh Home.
+  async function handleKillSwitch(): Promise<void> {
+    setKillError(null);
+    try {
+      await killSwitch();
+      await loadDashboard(currentAddress(), true);
+    } catch (caught) {
+      setKillError(
+        `Kill switch failed (${describeError(caught)}) — try again.`,
+      );
+    }
+  }
+
+  // S8: ticket submit (live or dry run). Idempotency keys make retries safe.
+  async function handleTicketSubmit(dryRun: boolean): Promise<void> {
+    if (selectedMarketId === undefined) return;
+    const size = Number(ticketSize);
+    if (!Number.isFinite(size) || size <= 0) {
+      setTicketError("Enter an amount greater than zero.");
+      return;
+    }
+    if (!perpl.hasTradeKey) {
+      openConnect();
+      return;
+    }
+    setTicketBusy(true);
+    setTicketError(null);
+    setTicketNotice(null);
+    try {
+      const { duplicate } = await submitOrder({
+        marketId: selectedMarketId,
+        side: ticketSide,
+        size,
+        leverage: Math.min(ticketLeverage, ticketMaxLeverage),
+        dryRun,
+      });
+      if (dryRun) {
+        setTicketNotice(
+          duplicate
+            ? "Dry run already recorded — the worker will simulate it."
+            : "Dry run accepted — the worker simulates end-to-end without submitting.",
+        );
+        return;
+      }
+      setTicketSize("");
+      setTicketNotice(null);
+      push("trades");
+      setTradesLoaded(false);
+      await loadTrades(false);
+      await loadDashboard(currentAddress(), true);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "no_trade_key") {
+        openConnect();
+        return;
+      }
+      setTicketError(describeError(caught));
+    } finally {
+      setTicketBusy(false);
+    }
+  }
+
+  function openTicket(side: "long" | "short"): void {
+    if (selectedMarketId === undefined) return;
+    setTicketSide(side);
+    setTicketSize("");
+    setTicketError(null);
+    setTicketNotice(null);
+    void getMarketsCached()
+      .then((markets) => {
+        const market = markets.find((m) => m.market_id === selectedMarketId);
+        if (market) {
+          const max = Math.max(
+            1,
+            Math.floor(10000 / (market.initial_margin || 10000)),
+          );
+          setTicketMaxLeverage(Math.min(max, 50));
+          setTicketLeverage((current) => Math.min(current, Math.min(max, 50)));
+        }
+      })
+      .catch(() => undefined);
+    push("ticket");
+  }
+
+  // Tournaments (S13).
+  const [tournaments, setTournaments] = useState<
+    { id: string; name: string; status: "Live" | "Upcoming" | "Ended"; entrants: string; prize: string; rank?: string }[]
+  >([]);
+  const [joinedIds, setJoinedIds] = useState<string[]>([]);
+  const [tournamentsLoading, setTournamentsLoading] = useState(false);
+  const [tournamentsError, setTournamentsError] = useState<string | null>(null);
+  const [joiningId, setJoiningId] = useState<string | null>(null);
+
+  const loadTournaments = useCallback(async (): Promise<void> => {
+    setTournamentsLoading(true);
+    setTournamentsError(null);
+    try {
+      const [rows, entries] = await Promise.all([
+        getTournaments(),
+        getMyTournamentEntries().catch(() => []),
+      ]);
+      setTournaments(
+        rows.map((t) => ({
+          id: t.id,
+          name: t.name,
+          status:
+            t.status === "Live" || t.status === "Upcoming" || t.status === "Ended"
+              ? t.status
+              : "Upcoming",
+          entrants: String(t.entrants ?? t.entries ?? "0"),
+          prize: t.prize ?? "—",
+          rank: t.rank ?? undefined,
+        })),
+      );
+      setJoinedIds(entries.map((e) => e.tournament_id));
+    } catch (caught) {
+      setTournamentsError(describeError(caught));
+    } finally {
+      setTournamentsLoading(false);
+    }
+  }, []);
+
+  async function handleJoinTournament(id: string): Promise<void> {
+    setJoiningId(id);
+    try {
+      await joinTournament(id);
+      await loadTournaments();
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "no_account") {
+        openConnect();
+        return;
+      }
+      setTournamentsError(describeError(caught));
+    } finally {
+      setJoiningId(null);
+    }
+  }
+
+  // Revoke a Perpl key (local revoke; Perpl UI revocation is separate).
+  async function handleRevokeKey(id: string): Promise<void> {
+    setRevokingId(id);
+    try {
+      await revokeAccount(id);
+      await loadPerpl();
+      await loadDashboard(currentAddress(), true);
+    } catch (caught) {
+      setKillError(`Revoke failed (${describeError(caught)}) — try again.`);
+    } finally {
+      setRevokingId(null);
+    }
+  }
+
+  // Own trader profile (S14).
+  const [leaderProfile, setLeaderProfile] = useState<{
+    isPublic: boolean;
+    bio: string;
+  } | null>(null);
+
+  const loadLeaderProfile = useCallback(async (): Promise<void> => {
+    try {
+      const me = await getMe();
+      if (!me.id) return;
+      const detail = await getLeader(me.id);
+      setLeaderProfile({
+        isPublic: detail.profile.is_public ?? false,
+        bio: detail.profile.bio ?? "",
+      });
+    } catch {
+      setLeaderProfile((current) => current ?? { isPublic: false, bio: "" });
+    }
+  }, []);
+
+  async function handleSaveLeaderProfile(input: {
+    isPublic: boolean;
+    bio: string;
+  }): Promise<void> {
+    setSavingProfile(true);
+    setProfileSaveError(null);
+    try {
+      await putLeaderProfile({ isPublic: input.isPublic, bio: input.bio });
+      setLeaderProfile(input);
+    } catch (caught) {
+      setProfileSaveError(describeError(caught));
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  // One-click trading flag (wallet-signed contract call).
+  const [oneClickBusy, setOneClickBusy] = useState(false);
+  const [oneClickError, setOneClickError] = useState<string | null>(null);
+  const [oneClickDone, setOneClickDone] = useState(false);
+
+  async function handleEnableOneClick(): Promise<void> {
+    const current = accountRef.current;
+    if (current?.status !== "unlocked") {
+      setTour(null);
+      return;
+    }
+    setOneClickBusy(true);
+    setOneClickError(null);
+    try {
+      await setOrderForwarding(current.wallet.session, true);
+      setOneClickDone(true);
+    } catch (caught) {
+      setOneClickError(describeError(caught));
+    } finally {
+      setOneClickBusy(false);
+    }
+  }
+
+  // Pull-to-refresh: retry a failed wallet link first, then reload.
+  async function handleDashboardRefresh(): Promise<void> {    const current = accountRef.current;
+    if (linkError !== null && current?.status === "unlocked") {
+      try {
+        const viemAccount = toViemAccount(current.wallet.session);
+        await linkWallet(current.wallet.address, (message: string) =>
+          viemAccount.signMessage({ message }),
+        );
+        setLinkError(null);
+      } catch (caught) {
+        setLinkError(
+          `Wallet sync failed (${describeError(caught)}) — pull to refresh to retry.`,
+        );
+      }
+    }
+    await loadDashboard(currentAddress(), true);
   }
 
   const busy = pending !== null;
   const statusText =
-    pending === "signin"
-      ? "Waiting for passkey…"
-      : pending === "unlock"
-        ? "Unlocking…"
-        : undefined;
+    pending === "create"
+      ? "Creating wallet…"
+      : pending === "signin"
+        ? "Waiting for passkey…"
+        : pending === "unlock"
+          ? "Unlocking…"
+          : undefined;
 
   // Tour navigation (UI-only, mock data throughout).
   const push = useCallback((key: StackKey): void => {
@@ -244,11 +1139,29 @@ export default function App() {
     setTour({ tab: "dashboard", stack: [] });
   }, []);
 
+  // Deferred connect entry points (Home banner, Account row): login
+  // first, connect later. Without a wallet, route back to onboarding.
+  const openConnect = useCallback((): void => {
+    if (accountRef.current?.status !== "unlocked") {
+      setTour(null);
+      return;
+    }
+    setConnectError(null);
+    push("connect");
+  }, [push]);
+
+  const handleFundContinue = useCallback((): void => {
+    // Back to connect: the user retries enrollment, which re-checks the
+    // on-chain account. Refresh the balance on the way.
+    pop();
+    void loadDashboard(currentAddress(), true);
+  }, [pop, loadDashboard]);
+
   if (account === null) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView style={styles.screen}>
-          <StatusBar barStyle="light-content" />
+        <SafeAreaView style={styles.onboardingScreen}>
+          <StatusBar barStyle="dark-content" />
           <SplashScreen connected={evm !== null} />
         </SafeAreaView>
       </SafeAreaProvider>
@@ -261,8 +1174,8 @@ export default function App() {
   if (activeTour === null) {
     return (
       <SafeAreaProvider>
-        <SafeAreaView style={styles.screen}>
-          <StatusBar barStyle="light-content" />
+        <SafeAreaView style={styles.onboardingScreen}>
+          <StatusBar barStyle="dark-content" />
           <OnboardingScreen
             stage={account.status === "locked" ? "locked" : "welcome"}
             address={
@@ -275,11 +1188,13 @@ export default function App() {
               onboardingError === null ? null : { message: onboardingError }
             }
             busy={busy}
+            onCreate={() => void handleCreate()}
             onSignIn={() => void handleSignIn()}
             onRecover={() => void handleSignIn()}
             onUnlock={() => void handleUnlock()}
             onSignOut={() => void handleSignOut()}
             onTour={enterTour}
+            onContinue={enterHome}
             onRetry={() => setOnboardingError(null)}
           />
         </SafeAreaView>
@@ -288,41 +1203,305 @@ export default function App() {
   }
 
   const top = activeTour.stack[activeTour.stack.length - 1] ?? null;
+  const activeTab = top === null ? activeTour.tab : null;
 
+  // Live trades load on entering the Trades stack.
+  useEffect(() => {
+    if (top === "trades" && !tradesLoaded && !tradesLoading) {
+      void loadTrades(false);
+    }
+  }, [top, tradesLoaded, tradesLoading, loadTrades]);
+
+  // Leaders load on entering Traders, per sort.
+  useEffect(() => {
+    if (
+      activeTab === "discover" &&
+      leadersLoadedSort !== leaderSort &&
+      !leadersLoading &&
+      !leadersRefreshing
+    ) {
+      void loadLeaders(leaderSort, leadersLoadedSort !== null);
+    }
+  }, [activeTab, leaderSort, leadersLoadedSort, leadersLoading, leadersRefreshing, loadLeaders]);
+
+  // Profile loads on entering it, per trader.
+  useEffect(() => {
+    if (top === "profile" && selectedLeaderId && profileFor !== selectedLeaderId && !profileLoading) {
+      void loadProfile(selectedLeaderId);
+    }
+  }, [top, selectedLeaderId, profileFor, profileLoading, loadProfile]);
+
+  // Copies load on entering the manager.
+  useEffect(() => {
+    if (top === "copies" && !copiesLoaded && !copiesLoading) {
+      void loadCopies(false);
+    }
+  }, [top, copiesLoaded, copiesLoading, loadCopies]);
+
+  // Realtime → debounced silent reloads (appflow §3 subscription map).
+  // Loaders only show spinners when no data exists yet, so ticks refresh
+  // quietly in the background.
+  const scheduleReload = useCallback(
+    (key: string, ms: number, fn: () => void): void => {
+      const existing = rtTimers.current.get(key);
+      if (existing) clearTimeout(existing);
+      rtTimers.current.set(
+        key,
+        setTimeout(() => {
+          rtTimers.current.delete(key);
+          fn();
+        }, ms),
+      );
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (!supaReady) return;
+    const unsubs = [
+      feed.subscribe("price_cache", () => {
+        scheduleReload("markets", 4000, () => setMarketsTick((t) => t + 1));
+        scheduleReload("pair", 4000, () => setPairTick((t) => t + 1));
+      }),
+      ...["positions", "copy_orders", "manual_orders", "notifications", "risk_events"].map(
+        (table) =>
+          feed.subscribe(table, () => {
+            scheduleReload("dash", 4000, () =>
+              void loadDashboard(currentAddress(), false),
+            );
+            scheduleReload("trades", 5000, () => void loadTrades(false));
+            scheduleReload("copies", 5000, () => void loadCopies(false));
+          }),
+      ),
+      feed.subscribe("leaderboard_snapshots", () => {
+        scheduleReload("leaders", 5000, () =>
+          void loadLeaders(leaderSortRef.current, false),
+        );
+      }),
+    ];
+    feed.start();
+    return () => {
+      unsubs.forEach((unsub) => unsub());
+    };
+  }, [supaReady, scheduleReload, loadDashboard, loadTrades, loadCopies, loadLeaders]);
+
+  // Fund metadata (min deposit) loads on entering Fund; own handle
+  // loads on entering Account. Both are cached/cheap.
+  useEffect(() => {
+    if (top === "fund") {
+      getAccountCreation()
+        .then((meta) => {
+          if (Number.isFinite(meta.minAccountOpenAmount.amount)) {
+            setMinDeposit(String(meta.minAccountOpenAmount.amount));
+          }
+        })
+        .catch(() => undefined);
+    }
+  }, [top]);
+
+  const loadMeHandle = useCallback(async (): Promise<void> => {
+    try {
+      const me = await getMe();
+      if (me.handle) setMeHandle(me.handle);
+    } catch {
+      // Handle stays at its placeholder; retry on next visit.
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "account") {
+      void loadMeHandle();
+      void loadLeaderProfile();
+    }
+  }, [activeTab, loadMeHandle, loadLeaderProfile]);
+
+  useEffect(() => {
+    if (activeTab === "contests") {
+      void loadTournaments();
+    }
+  }, [activeTab, loadTournaments]);
+
+  async function handleSaveHandle(handle: string): Promise<void> {
+    setSavingHandle(true);
+    setHandleError(null);
+    try {
+      const me = await updateHandle(handle);
+      if (me.handle) setMeHandle(me.handle);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.code === "conflict") {
+        setHandleError("That handle is taken — try another.");
+        return;
+      }
+      setHandleError(describeError(caught));
+    } finally {
+      setSavingHandle(false);
+    }
+  }
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.screen}>
-        <StatusBar barStyle="light-content" />
+        <StatusBar barStyle="dark-content" />
         <View style={styles.tour}>
           {top === "connect" ? (
             <ConnectPerplScreen
-              onBack={pop}
-              onEnroll={() => push("fund")}
-              onImport={enterHome}
+              address={currentAddress() ?? ""}
+              busy={connectBusy}
+              error={
+                connectError === null ? null : { message: connectError }
+              }
+              onEnrollNew={() => void handleEnrollNew()}
+              onImportKey={(input) => void handleImportKey(input)}
               onGoFund={() => push("fund")}
+              onRetry={() => setConnectError(null)}
+              onBack={pop}
             />
           ) : top === "fund" ? (
-            <FundScreen onBack={pop} onOpenFaucet={enterHome} onDeposited={enterHome} />
+            <FundScreen
+              balance={dash?.available ?? "0.00"}
+              minDeposit={minDeposit}
+              oneClickBusy={oneClickBusy}
+              oneClickError={oneClickError}
+              oneClickDone={oneClickDone}
+              onEnableOneClick={() => void handleEnableOneClick()}
+              onBack={pop}
+              onOpenSite={openFundSite}
+              onContinue={handleFundContinue}
+            />
+          ) : top === "withdraw" ? (
+            <WithdrawScreen
+              balance={dash?.available ?? "0.00"}
+              onOpenSite={openFundSite}
+              onBack={pop}
+            />
           ) : top === "pair" ? (
             <PairDetailScreen
+              marketId={selectedMarketId}
+              refreshToken={pairTick}
+              position={
+                selectedMarketSymbol
+                  ? (dash?.positions.find((p) => p.symbol === selectedMarketSymbol) ?? null)
+                  : null
+              }
               onBack={pop}
-              onTrade={() => push("ticket")}
+              onTrade={(side) => openTicket(side)}
               onCopyTrader={() => push("profile")}
             />
           ) : top === "ticket" ? (
-            <TradeTicketScreen onBack={pop} />
+            <TradeTicketScreen
+              symbol={selectedMarketSymbol ? `${selectedMarketSymbol}-PERP` : undefined}
+              mark={dash?.positions.find((p) => p.symbol === selectedMarketSymbol)?.mark}
+              side={ticketSide}
+              size={ticketSize}
+              leverage={ticketLeverage}
+              maxLeverage={ticketMaxLeverage}
+              busy={ticketBusy}
+              error={ticketError === null ? null : { message: ticketError }}
+              notice={ticketNotice}
+              onSizeChange={setTicketSize}
+              onLeverageChange={setTicketLeverage}
+              onSubmit={() => void handleTicketSubmit(false)}
+              onDryRun={() => void handleTicketSubmit(true)}
+              onBack={pop}
+            />
           ) : top === "trades" ? (
-            <TradesScreen onBack={pop} />
+            <TradesScreen
+              fills={fills}
+              realizedPnlToday={dash?.realizedPnlToday ?? "+0.00"}
+              realizedPnlUp={dash?.realizedPnlUp ?? true}
+              loading={tradesLoading && !tradesLoaded}
+              loadError={!tradesLoaded ? tradesError : null}
+              refreshing={tradesRefreshing}
+              onRefresh={() => void loadTrades(true)}
+              onBack={pop}
+            />
           ) : top === "profile" ? (
-            <TraderProfileScreen onBack={pop} onStartCopy={() => push("copies")} />
+            <TraderProfileScreen
+              handle={profile?.handle}
+              bio={profile?.bio}
+              pnl30d={profile?.pnl30d}
+              pnlUp={profile?.pnlUp}
+              pnl24h={profile?.pnl24h}
+              winRate={profile?.winRate}
+              sharpe={profile?.sharpe}
+              followers={profile?.followers}
+              following={profile?.following ?? false}
+              busy={copyBusy}
+              loading={profileLoading && profileFor !== selectedLeaderId}
+              loadError={profileFor !== selectedLeaderId ? profileError : null}
+              positions={profile?.positions ?? []}
+              fills={profile?.fills ?? []}
+              allocation={allocation}
+              copyError={copyError}
+              onBack={pop}
+              onFollow={() => void handleFollowToggle()}
+              onUnfollow={() => void handleFollowToggle()}
+              onAllocationChange={(value) => {
+                setAllocation(value);
+                setCopyError(null);
+              }}
+              onStartCopy={() => void handleStartCopy()}
+              onRetry={() =>
+                selectedLeaderId ? void loadProfile(selectedLeaderId) : undefined
+              }
+            />
           ) : top === "copies" ? (
-            <CopyManagementScreen onBack={pop} />
+            <CopyManagementScreen
+              copies={copies}
+              loading={copiesLoading && !copiesLoaded}
+              loadError={copiesError}
+              refreshing={copiesRefreshing}
+              onRefresh={() => void loadCopies(true)}
+              onBack={pop}
+              onPause={(id) => void handleCopyPause(id)}
+              onResume={(id) => void handleCopyResume(id)}
+              onStop={(id) => void handleCopyStop(id)}
+              onKillSwitch={() => void handleKillSwitch()}
+            />
+          ) : top === "export" ? (
+            <ExportScreen
+              credentialId={
+                account.status === "unlocked"
+                  ? account.wallet.credentialId
+                  : account.status === "locked"
+                    ? account.credentialId
+                    : undefined
+              }
+              onBack={pop}
+            />
           ) : activeTour.tab === "markets" ? (
-            <MarketsScreen onSelectMarket={() => push("pair")} />
+            <MarketsScreen
+              refreshToken={marketsTick}
+              onSelectMarket={(id, symbol) => {
+                setSelectedMarketId(id);
+                setSelectedMarketSymbol(symbol);
+                push("pair");
+              }}
+            />
           ) : activeTour.tab === "discover" ? (
-            <DiscoverScreen onSelectTrader={() => push("profile")} />
+            <DiscoverScreen
+              leaders={leaders}
+              sort={leaderSort}
+              loading={leadersLoading && leadersLoadedSort === null}
+              loadError={leadersLoadedSort === null ? leadersError : null}
+              refreshing={leadersRefreshing}
+              onRefresh={() => void loadLeaders(leaderSort, true)}
+              onSortChange={(sort) => setLeaderSort(sort)}
+              onSelectTrader={(id) => {
+                setSelectedLeaderId(id);
+                setCopyError(null);
+                push("profile");
+              }}
+            />
           ) : activeTour.tab === "contests" ? (
-            <TournamentsScreen />
+            <TournamentsScreen
+              tournaments={tournaments}
+              joinedIds={joinedIds}
+              joiningId={joiningId}
+              loading={tournamentsLoading && tournaments.length === 0}
+              loadError={tournaments.length === 0 ? tournamentsError : null}
+              onJoin={(id) => void handleJoinTournament(id)}
+              onRetry={() => void loadTournaments()}
+            />
           ) : activeTour.tab === "account" ? (
             <AccountScreen
               address={
@@ -332,6 +1511,28 @@ export default function App() {
                     ? truncate(account.wallet.address)
                     : undefined
               }
+              handle={meHandle ?? undefined}
+              perplStatus={
+                perpl.state === "connected"
+                  ? `Connected · ${perpl.keyCount} key${perpl.keyCount === 1 ? "" : "s"}`
+                  : perpl.state === "unconnected"
+                    ? "Not connected"
+                    : undefined
+              }
+              onConnectPerpl={openConnect}
+              handleError={handleError}
+              savingHandle={savingHandle}
+              onSaveHandle={(handle) => void handleSaveHandle(handle)}
+              keys={perplAccounts}
+              revokingId={revokingId}
+              onRevokeKey={(id) => void handleRevokeKey(id)}
+              leaderProfile={leaderProfile}
+              savingProfile={savingProfile}
+              profileError={profileSaveError}
+              onSaveLeaderProfile={(input) => void handleSaveLeaderProfile(input)}
+              onLock={() => void handleLock()}
+              onExport={() => push("export")}
+              onWithdraw={() => push("withdraw")}
               onSignOut={() => {
                 if (account.status === "unlocked") void handleSignOut();
                 else setTour(null);
@@ -339,6 +1540,27 @@ export default function App() {
             />
           ) : (
             <DashboardScreen
+              equity={dash?.equity ?? "0.00"}
+              available={dash?.available}
+              lastUpdatedSecondsAgo={dash?.lastUpdatedSecondsAgo ?? 0}
+              unread={dash?.unread ?? 0}
+              realizedPnlToday={dash?.realizedPnlToday ?? "+0.00"}
+              realizedPnlUp={dash?.realizedPnlUp ?? true}
+              riskNotice={linkError ?? killError}
+              positions={dash?.positions ?? []}
+              copies={dash?.copies ?? []}
+              activity={dash?.activity ?? []}
+              loading={dashLoading && dash === null}
+              loadError={dash === null ? dashError : null}
+              refreshing={dashRefreshing}
+              onRefresh={() => void handleDashboardRefresh()}
+              perplConnected={
+                currentAddress() !== undefined && perpl.state !== "unknown"
+                  ? perpl.state === "connected"
+                  : undefined
+              }
+              onConnectPerpl={openConnect}
+              onKillSwitch={() => void handleKillSwitch()}
               onMarkets={() => goTab("markets")}
               onCopyTrader={() => goTab("discover")}
               onManageCopies={() => push("copies")}
@@ -354,18 +1576,17 @@ export default function App() {
                 <Pressable
                   key={tab.key}
                   accessibilityRole="tab"
+                  accessibilityLabel={tab.label}
                   hitSlop={4}
                   onPress={() => goTab(tab.key)}
-                  style={[styles.tab, active ? styles.tabActive : null]}
+                  style={styles.tab}
                 >
-                  <Text
-                    style={[
-                      styles.tabGlyph,
-                      active ? styles.tabActiveText : styles.tabIdleText,
-                    ]}
-                  >
-                    {tab.glyph}
-                  </Text>
+                  {active ? <View style={styles.tabDot} /> : null}
+                  <Ionicons
+                    name={active ? tab.icon : tab.iconOutline}
+                    size={24}
+                    color={active ? "#13171D" : "#8A94A6"}
+                  />
                   <Text
                     style={[
                       styles.tabLabel,
@@ -385,29 +1606,41 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: palette.bg, flex: 1 },
+  screen: { backgroundColor: "#F1F3F6", flex: 1 },
+  onboardingScreen: { backgroundColor: "#FFFFFF", flex: 1 },
   tab: {
     alignItems: "center",
-    borderRadius: radii.pill,
-    gap: 2,
+    gap: 3,
     minHeight: 52,
     minWidth: 60,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  tabActive: { backgroundColor: palette.surfaceMuted },
-  tabActiveText: { color: palette.ink },
+  tabActiveText: { color: "#13171D" },
   tabBar: {
-    backgroundColor: palette.surface,
-    borderTopColor: palette.border,
+    backgroundColor: "#FFFFFF",
+    borderTopColor: "#E2E7EE",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     borderTopWidth: 1,
     flexDirection: "row",
     justifyContent: "space-around",
+    paddingBottom: spacing.md,
     paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
+    paddingTop: spacing.sm,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 20,
+    elevation: 8,
   },
-  tabGlyph: { fontSize: 16, fontWeight: "600", lineHeight: 20 },
-  tabIdleText: { color: palette.ash },
-  tabLabel: { fontSize: 11, fontWeight: "500", lineHeight: 14 },
+  tabDot: {
+    backgroundColor: "#FF6B1A",
+    borderRadius: 9999,
+    height: 5,
+    width: 5,
+  },
+  tabIdleText: { color: "#8A94A6" },
+  tabLabel: { fontSize: 11, fontWeight: "600", lineHeight: 14 },
   tour: { flex: 1 },
 });

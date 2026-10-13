@@ -1,16 +1,40 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ReactElement } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import Svg, { Path } from "react-native-svg";
-import { LinkButton } from "../Button";
-import { Card } from "../ui";
-import { palette, radii, spacing } from "../theme";
+import { Ionicons } from "@expo/vector-icons";
+import { coinColor } from "./coinMeta";
+import {
+  BG,
+  BORDER,
+  CARD,
+  CARD_SOFT,
+  DOWN,
+  INK,
+  MUTED,
+  SECONDARY,
+  TEAL,
+  UP,
+} from "./homeTheme";
+import {
+  getCandles,
+  getMarketsCached,
+  toMarketRow,
+  type ApiCandle,
+  type ApiMarket,
+} from "../api";
 import type { PairDetailProps, PositionRow } from "./types";
 
-// Fixed mock trajectory — UI-only, no data fetching.
+// Fixed mock trajectory — fallback until live candles arrive.
 const CHART_LINE =
   "M0,72 L30,68 L60,70 L90,58 L120,60 L150,46 L180,50 L210,36 L240,40 L270,22 L300,18";
-const CHART_AREA = `${CHART_LINE} L300,96 L0,96 Z`;
 
 const TABS = ["Trades", "Orders"] as const;
 type Tab = (typeof TABS)[number];
@@ -20,15 +44,51 @@ const INDICATORS = ["MA", "BOLL", "MACD", "VOL", "RSI"] as const;
 const TIMEFRAMES = ["Live", "1H", "4H", "1D", "1W", "1M"] as const;
 type Timeframe = (typeof TIMEFRAMES)[number];
 
+const TIMEFRAME_PARAMS: Record<Timeframe, { resolution: number; hours: number }> = {
+  Live: { resolution: 60, hours: 1 },
+  "1H": { resolution: 60, hours: 1 },
+  "4H": { resolution: 300, hours: 4 },
+  "1D": { resolution: 900, hours: 24 },
+  "1W": { resolution: 3600, hours: 168 },
+  "1M": { resolution: 14400, hours: 720 },
+};
+
 function formatChange(changePct: number): string {
   return `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`;
+}
+
+function formatCompactUsd(value: number): string {
+  if (!Number.isFinite(value)) return "—";
+  const abs = Math.abs(value);
+  const trim = (n: number): string =>
+    String(Math.round(n * 10) / 10).replace(/\.0$/, "");
+  if (abs >= 1_000_000_000) return `$${trim(value / 1_000_000_000)}B`;
+  if (abs >= 1_000_000) return `$${trim(value / 1_000_000)}M`;
+  if (abs >= 1_000) return `$${trim(value / 1_000)}K`;
+  return `$${value.toFixed(2)}`;
+}
+
+/** Line path through candle closes in a 300x96 box. */
+function closesToPath(closes: number[]): string | null {
+  if (closes.length < 2) return null;
+  const min = Math.min(...closes);
+  const max = Math.max(...closes);
+  const span = max - min || 1;
+  const step = 300 / (closes.length - 1);
+  return closes
+    .map((c, i) => {
+      const x = (i * step).toFixed(1);
+      const y = (88 - ((c - min) / span) * 80).toFixed(1);
+      return `${i === 0 ? "M" : "L"}${x},${y}`;
+    })
+    .join(" ");
 }
 
 function PositionCard({ position }: { position: PositionRow }): ReactElement {
   const long = position.side === "Long";
   return (
     <View style={styles.row}>
-      <View style={styles.coin}>
+      <View style={[styles.coin, { backgroundColor: coinColor(position.symbol) }]}>
         <Text style={styles.coinText}>{position.symbol.slice(0, 1)}</Text>
       </View>
       <View style={styles.rowMain}>
@@ -36,8 +96,20 @@ function PositionCard({ position }: { position: PositionRow }): ReactElement {
         <Text style={styles.rowDetail}>{position.size}</Text>
       </View>
       <View style={styles.rowRight}>
-        <View style={[styles.pill, long ? styles.pillLong : styles.pillShort]}>
-          <Text style={styles.pillLabel}>{position.side}</Text>
+        <View
+          style={[
+            styles.pill,
+            long ? styles.pillLong : styles.pillShort,
+          ]}
+        >
+          <Text
+            style={[
+              styles.pillLabel,
+              long ? styles.up : styles.down,
+            ]}
+          >
+            {position.side}
+          </Text>
         </View>
         <Text style={[styles.pnl, position.pnlUp ? styles.up : styles.down]}>
           {position.pnl}
@@ -49,14 +121,16 @@ function PositionCard({ position }: { position: PositionRow }): ReactElement {
 
 export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
   const {
-    symbol = "BTC",
-    mark = "67,410.5",
-    changePct = 2.41,
-    high = "68,900.0",
-    low = "65,120.3",
+    marketId,
+    refreshToken = 0,
+    symbol: symbolProp = "BTC",
+    mark: markProp = "67,410.5",
+    changePct: changeProp = 2.41,
+    high: highProp = "68,900.0",
+    low: lowProp = "65,120.3",
     funding = "0.0100%",
-    openInterest = "412M",
-    volume = "1.2B",
+    openInterest: oiProp = "412M",
+    volume: volumeProp = "1.2B",
     position = null,
     onBack,
     onCopyTrader,
@@ -65,8 +139,95 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
 
   const [tab, setTab] = useState<Tab>("Trades");
   const [timeframe, setTimeframe] = useState<Timeframe>("Live");
+  const [market, setMarket] = useState<ApiMarket | null>(null);
+  const [candles, setCandles] = useState<ApiCandle[] | null>(null);
+  const [chartLoading, setChartLoading] = useState(marketId !== undefined);
+  const [chartError, setChartError] = useState<string | null>(null);
+
+  // Live header row for the selected market (public endpoint, no auth).
+  useEffect(() => {
+    if (marketId === undefined) return;
+    let stale = false;
+    getMarketsCached()
+      .then((markets) => {
+        if (stale) return;
+        setMarket(markets.find((m) => m.market_id === marketId) ?? null);
+      })
+      .catch(() => {
+        if (!stale) setMarket(null);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [marketId, refreshToken]);
+
+  // Live candles for the active timeframe.
+  useEffect(() => {
+    if (marketId === undefined) return;
+    let stale = false;
+    setChartLoading(true);
+    setChartError(null);
+    const { resolution, hours } = TIMEFRAME_PARAMS[timeframe];
+    getCandles(marketId, resolution, hours)
+      .then((rows) => {
+        if (stale) return;
+        setCandles(rows);
+      })
+      .catch((caught: unknown) => {
+        if (stale) return;
+        setCandles(null);
+        setChartError(
+          caught instanceof Error ? caught.message : "Couldn't load chart",
+        );
+      })
+      .finally(() => {
+        if (!stale) setChartLoading(false);
+      });
+    return () => {
+      stale = true;
+    };
+  }, [marketId, timeframe, refreshToken]);
+
+  const liveRow = market ? toMarketRow(market) : null;
+  const symbol = market?.symbol ?? symbolProp;
+  const mark = liveRow?.mark ?? markProp;
+  const changePct = liveRow?.changePct ?? changeProp;
+  const volume = liveRow?.volume ?? volumeProp;
+  const candleHigh =
+    candles && candles.length > 0
+      ? Math.max(...candles.map((c) => c.h))
+      : null;
+  const candleLow =
+    candles && candles.length > 0 ? Math.min(...candles.map((c) => c.l)) : null;
+  const priceDecimals = market?.price_decimals ?? 2;
+  const digits = Math.min(Math.max(priceDecimals, 2), 5);
+  const high =
+    candleHigh !== null
+      ? candleHigh.toLocaleString("en-US", {
+          minimumFractionDigits: digits,
+          maximumFractionDigits: digits,
+        })
+      : highProp;
+  const low =
+    candleLow !== null
+      ? candleLow.toLocaleString("en-US", {
+          minimumFractionDigits: digits,
+          maximumFractionDigits: digits,
+        })
+      : lowProp;
+  const openInterest =
+    market && market.open_interest !== null && liveRow
+      ? formatCompactUsd(
+          (Number(market.open_interest) / 10 ** market.size_decimals) *
+            (Number(market.mark_price) / 10 ** market.price_decimals),
+        )
+      : oiProp;
+  const closes = candles?.map((c) => c.c) ?? [];
+  const liveLine = closesToPath(closes);
+  const line = liveLine ?? CHART_LINE;
+  const area = `${line} L300,96 L0,96 Z`;
   const up = changePct >= 0;
-  const lineColor = up ? palette.forest : palette.error;
+  const lineColor = up ? UP : DOWN;
   const stats: Array<{ label: string; value: string }> = [
     { label: "High", value: high },
     { label: "Low", value: low },
@@ -85,16 +246,27 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
         accessibilityRole="button"
         hitSlop={8}
         onPress={() => onBack?.()}
+        style={styles.back}
       >
-        <Text style={styles.back}>‹ Back</Text>
+        <Ionicons name="chevron-back" size={20} color={SECONDARY} />
+        <Text style={styles.backLabel}>Back</Text>
       </Pressable>
 
       <View style={styles.header}>
-        <Text style={styles.symbol}>{symbol}</Text>
-        <View style={styles.quoteRow}>
-          <Text style={styles.mark}>{mark}</Text>
-          <View style={[styles.pill, up ? styles.pillLong : styles.pillShort]}>
-            <Text style={styles.pillLabel}>{formatChange(changePct)}</Text>
+        <View
+          style={[styles.coinLarge, { backgroundColor: coinColor(symbol) }]}
+        >
+          <Text style={styles.coinLargeText}>{symbol.slice(0, 1)}</Text>
+        </View>
+        <View style={styles.headerMain}>
+          <Text style={styles.symbol}>{symbol} / USD</Text>
+          <View style={styles.quoteRow}>
+            <Text style={styles.mark}>{mark}</Text>
+            <View style={[styles.pill, up ? styles.pillLong : styles.pillShort]}>
+              <Text style={[styles.pillLabel, up ? styles.up : styles.down]}>
+                {formatChange(changePct)}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -118,27 +290,36 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
         })}
       </View>
 
-      <Card>
-        <Svg
-          accessibilityLabel="Price chart"
-          viewBox="0 0 300 96"
-          style={styles.chart}
-        >
-          <Path d={CHART_AREA} fill={lineColor} opacity={0.08} />
-          <Path
-            d={CHART_LINE}
-            fill="none"
-            stroke={lineColor}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </Svg>
+      <View style={styles.card}>
+        {chartLoading && liveLine === null ? (
+          <View style={styles.chartLoading}>
+            <ActivityIndicator size="small" color={MUTED} />
+          </View>
+        ) : (
+          <Svg
+            accessibilityLabel="Price chart"
+            viewBox="0 0 300 96"
+            style={styles.chart}
+          >
+            <Path d={area} fill={lineColor} opacity={0.12} />
+            <Path
+              d={line}
+              fill="none"
+              stroke={lineColor}
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </Svg>
+        )}
+        {chartError && liveLine === null ? (
+          <Text style={styles.chartCaption}>{chartError}</Text>
+        ) : null}
         <View style={styles.chartMeta}>
           <Text style={styles.chartCaption}>H {high}</Text>
           <Text style={styles.chartCaption}>L {low}</Text>
         </View>
-      </Card>
+      </View>
 
       <View style={styles.chipsRow}>
         {INDICATORS.map((item) => (
@@ -151,24 +332,26 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
       <View style={styles.chipsRow}>
         {TIMEFRAMES.map((item) => {
           const active = item === timeframe;
-          const live = item === "Live";
           return (
             <Pressable
               key={item}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
               onPress={() => setTimeframe(item)}
-              style={[
-                styles.tfChip,
-                live ? styles.tfLive : styles.tfIdle,
-                !live && active ? styles.tfSelected : null,
-              ]}
+              style={[styles.tfChip, active ? styles.tfActive : styles.tfIdle]}
             >
-              {live ? <View style={styles.liveDot} /> : null}
+              {item === "Live" ? (
+                <View
+                  style={[
+                    styles.liveDot,
+                    { backgroundColor: active ? "#FFFFFF" : UP },
+                  ]}
+                />
+              ) : null}
               <Text
                 style={[
                   styles.tfLabel,
-                  live || active ? styles.tfLabelActive : null,
+                  active ? styles.tfLabelActive : null,
                 ]}
               >
                 {item}
@@ -178,25 +361,18 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
         })}
       </View>
 
-      <Card style={styles.statsCard} padding={spacing.sm}>
+      <View style={styles.card}>
         <View style={styles.grid}>
-          {stats.map((cell, index) => (
-            <View
-              key={cell.label}
-              style={[
-                styles.cell,
-                index % 2 === 0 ? styles.cellLeft : styles.cellRight,
-                index >= stats.length - 2 ? styles.cellLastRow : null,
-              ]}
-            >
+          {stats.map((cell) => (
+            <View key={cell.label} style={styles.cell}>
               <Text style={styles.cellLabel}>{cell.label}</Text>
               <Text style={styles.cellValue}>{cell.value}</Text>
             </View>
           ))}
         </View>
-      </Card>
+      </View>
 
-      <Card>
+      <View style={styles.card}>
         {position != null ? (
           <PositionCard position={position} />
         ) : (
@@ -204,7 +380,7 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
             <Text style={styles.emptyText}>No open position</Text>
           </View>
         )}
-      </Card>
+      </View>
 
       <Text style={styles.risk}>
         Perps are leveraged — you can lose your collateral.
@@ -213,7 +389,7 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
       <View style={styles.directionRow}>
         <Pressable
           accessibilityRole="button"
-          onPress={() => onTrade?.()}
+          onPress={() => onTrade?.("long")}
           style={({ pressed }) => [
             styles.directionBlock,
             styles.longBlock,
@@ -224,7 +400,7 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          onPress={() => onTrade?.()}
+          onPress={() => onTrade?.("short")}
           style={({ pressed }) => [
             styles.directionBlock,
             styles.shortBlock,
@@ -235,60 +411,81 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
         </Pressable>
       </View>
 
-      <View style={styles.copyWrap}>
-        <LinkButton
-          title="Copy top trader instead"
-          onPress={() => onCopyTrader?.()}
-        />
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        hitSlop={8}
+        onPress={() => onCopyTrader?.()}
+        style={styles.copyWrap}
+      >
+        <Text style={styles.copyLabel}>Copy top trader instead →</Text>
+      </Pressable>
     </ScrollView>
   );
 }
 
+const cardElevation = {
+  shadowColor: "#0F172A",
+  shadowOffset: { width: 0, height: 8 },
+  shadowOpacity: 0.07,
+  shadowRadius: 18,
+  elevation: 3,
+} as const;
+
 const styles = StyleSheet.create({
-  back: { color: palette.graphite, fontSize: 14, fontWeight: "500" },
-  cell: { flex: 1, gap: 2, paddingVertical: spacing.sm },
-  cellLabel: { color: palette.graphite, fontSize: 12, fontWeight: "400", lineHeight: 16 },
-  cellLastRow: { borderBottomWidth: 0 },
-  cellLeft: {
-    borderBottomColor: palette.border,
-    borderBottomWidth: 1,
-    borderRightColor: palette.border,
-    borderRightWidth: 1,
-    paddingRight: spacing.sm,
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
+  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  card: {
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 10,
+    padding: 16,
+    ...cardElevation,
   },
-  cellRight: {
-    borderBottomColor: palette.border,
-    borderBottomWidth: 1,
-    paddingLeft: spacing.sm,
-  },
+  cell: { flexBasis: "46%", flexGrow: 1, gap: 2, paddingVertical: 8 },
+  cellLabel: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 0.6, lineHeight: 14, textTransform: "uppercase" },
   cellValue: {
-    color: palette.ink,
+    color: INK,
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
     fontVariant: ["tabular-nums"],
     lineHeight: 20,
   },
-  chart: { height: 96, width: "100%" },
-  chartCaption: { color: palette.slate, fontSize: 12, fontWeight: "400", lineHeight: 16 },
+  chart: { height: 120, width: "100%" },
+  chartCaption: { color: MUTED, fontSize: 12, fontWeight: "500", lineHeight: 16 },
+  chartLoading: {
+    alignItems: "center",
+    height: 120,
+    justifyContent: "center",
+    width: "100%",
+  },
   chartMeta: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
+  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   coin: {
     alignItems: "center",
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: radii.full,
-    height: 40,
+    borderRadius: 9999,
+    height: 42,
     justifyContent: "center",
-    width: 40,
+    width: 42,
   },
-  coinText: { color: palette.ink, fontSize: 15, fontWeight: "600" },
-  copyWrap: { alignItems: "center" },
+  coinText: { color: "#FFFFFF", fontSize: 17, fontWeight: "800" },
+  coinLarge: {
+    alignItems: "center",
+    borderRadius: 9999,
+    height: 52,
+    justifyContent: "center",
+    width: 52,
+  },
+  coinLargeText: { color: "#FFFFFF", fontSize: 21, fontWeight: "800" },
+  copyLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
+  copyWrap: { alignItems: "center", paddingVertical: 6 },
   directionBlock: {
     alignItems: "center",
-    borderRadius: 12,
+    borderRadius: 16,
     flex: 1,
     justifyContent: "center",
     minHeight: 56,
@@ -296,136 +493,99 @@ const styles = StyleSheet.create({
   directionLabel: {
     color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: "600",
+    fontWeight: "700",
     lineHeight: 20,
   },
-  directionRow: { flexDirection: "row", gap: spacing.xs },
-  down: { color: palette.down },
-  emptyText: { color: palette.slate, fontSize: 13, fontWeight: "400", lineHeight: 19 },
+  directionRow: { flexDirection: "row", gap: 10 },
+  down: { color: DOWN },
+  emptyText: { color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 19 },
   emptyWrap: {
     alignItems: "center",
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: radii.sm,
-    padding: spacing.md,
+    backgroundColor: CARD_SOFT,
+    borderRadius: 14,
+    padding: 14,
   },
-  grid: { flexDirection: "row", flexWrap: "wrap" },
-  header: { gap: 4 },
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
+  header: { alignItems: "center", flexDirection: "row", gap: 12 },
+  headerMain: { flex: 1, gap: 4 },
   indChip: {
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: radii.pill,
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: 9999,
+    borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  indLabel: {
-    color: palette.graphite,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
-  },
-  liveDot: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: radii.full,
-    height: 6,
-    width: 6,
-  },
-  longBlock: { backgroundColor: "#6D5EF0" },
+  indLabel: { color: SECONDARY, fontSize: 12, fontWeight: "600", lineHeight: 15 },
+  liveDot: { borderRadius: 9999, height: 6, width: 6 },
+  longBlock: { backgroundColor: UP },
   mark: {
-    color: palette.ink,
-    fontSize: 29,
-    fontWeight: "600",
+    color: INK,
+    fontSize: 30,
+    fontWeight: "800",
     fontVariant: ["tabular-nums"],
-    letterSpacing: -0.52,
-    lineHeight: 35,
+    letterSpacing: -0.5,
+    lineHeight: 36,
   },
   pill: {
     alignSelf: "flex-start",
-    borderRadius: radii.pill,
+    borderRadius: 9999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  pillLabel: {
-    color: palette.textInverse,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
-  },
-  pillLong: { backgroundColor: palette.forest },
-  pillShort: { backgroundColor: palette.error },
+  pillLabel: { fontSize: 12, fontWeight: "700", lineHeight: 15 },
+  pillLong: { backgroundColor: "rgba(23, 138, 76, 0.12)" },
+  pillShort: { backgroundColor: "rgba(217, 45, 32, 0.12)" },
   pnl: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     fontVariant: ["tabular-nums"],
     lineHeight: 18,
   },
   pressed: { opacity: 0.85 },
-  quoteRow: { alignItems: "center", flexDirection: "row", gap: spacing.sm },
-  risk: { color: palette.slate, fontSize: 12, fontWeight: "400", lineHeight: 16 },
+  quoteRow: { alignItems: "center", flexDirection: "row", gap: 10 },
+  risk: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16, textAlign: "center" },
   row: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing.sm,
+    gap: 12,
   },
-  rowDetail: { color: palette.slate, fontSize: 12, fontWeight: "400", lineHeight: 16 },
+  rowDetail: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
   rowMain: { flex: 1, gap: 2 },
   rowRight: { alignItems: "flex-end", gap: 6 },
-  rowTitle: { color: palette.ink, fontSize: 14, fontWeight: "600", lineHeight: 19 },
-  screen: { backgroundColor: palette.bg, flex: 1 },
-  scroll: { gap: spacing.md, padding: spacing.md },
+  rowTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  screen: { backgroundColor: BG, flex: 1 },
+  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
   segmented: {
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: radii.pill,
+    backgroundColor: CARD_SOFT,
+    borderRadius: 9999,
     flexDirection: "row",
     padding: 4,
   },
   segment: {
     alignItems: "center",
-    borderRadius: radii.pill,
+    borderRadius: 9999,
     flex: 1,
     paddingVertical: 8,
   },
-  segmentActive: { backgroundColor: palette.surfaceStrong },
-  segmentLabel: {
-    color: palette.slate,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
-  },
-  segmentLabelActive: {
-    color: palette.ink,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
-  },
-  shortBlock: { backgroundColor: palette.error },
-  statsCard: { gap: 0 },
-  symbol: {
-    color: palette.ink,
-    fontSize: 22,
-    fontWeight: "600",
-    letterSpacing: -0.37,
-    lineHeight: 31,
-  },
+  segmentActive: { backgroundColor: CARD, ...cardElevation },
+  segmentLabel: { color: MUTED, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  segmentLabelActive: { color: INK, fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  shortBlock: { backgroundColor: DOWN },
+  symbol: { color: INK, fontSize: 20, fontWeight: "800", letterSpacing: -0.4, lineHeight: 28 },
+  tfActive: { backgroundColor: INK },
   tfChip: {
     alignItems: "center",
-    borderRadius: radii.pill,
+    borderRadius: 9999,
     flexDirection: "row",
     gap: 6,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
-  tfIdle: { backgroundColor: palette.surfaceMuted },
-  tfLabel: {
-    color: palette.graphite,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
-  },
-  tfLabelActive: {
-    color: palette.textInverse,
-  },
-  tfLive: { backgroundColor: palette.forest },
-  tfSelected: { backgroundColor: palette.surfaceStrong },
-  up: { color: palette.up },
+  tfIdle: { backgroundColor: CARD, borderColor: BORDER, borderWidth: 1 },
+  tfLabel: { color: SECONDARY, fontSize: 12, fontWeight: "600", lineHeight: 15 },
+  tfLabelActive: { color: "#FFFFFF" },
+  up: { color: UP },
 });
 
 export default PairDetailScreen;

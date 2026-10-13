@@ -1,59 +1,48 @@
-import type { ReactElement, ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Button, LinkButton } from "../Button";
-import { Card } from "../ui";
-import { palette, radii, spacing, text } from "../theme";
+import { useState, type ReactElement } from "react";
+import {
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import {
+  BG,
+  BORDER,
+  CARD,
+  CARD_SOFT,
+  INK,
+  MUTED,
+  SECONDARY,
+  SHEET,
+  TEAL,
+} from "./homeTheme";
 import type { ConnectPerplProps } from "./types";
-
-const STEPS = ["1 Payload", "2 Sign", "3 Confirm"] as const;
 
 function truncate(address: string): string {
   if (address.length <= 12) return address;
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
-type TagVariant = "done" | "active" | "todo" | "soft";
-
-function Tag({ variant, children }: { variant: TagVariant; children: ReactNode }) {
-  const style = tagStyles[variant];
-  return (
-    <View style={[styles.tag, style.container]}>
-      <Text style={[styles.tagLabel, style.label]}>{children}</Text>
-    </View>
-  );
-}
-
-const tagStyles = {
-  done: {
-    container: { backgroundColor: palette.okSoft },
-    label: { color: palette.forest },
-  },
-  active: {
-    container: { backgroundColor: palette.ink },
-    label: { color: palette.bg },
-  },
-  todo: {
-    container: { backgroundColor: palette.surfaceMuted },
-    label: { color: palette.graphite },
-  },
-  soft: {
-    container: { backgroundColor: palette.sunlitCream },
-    label: { color: palette.emberBrown },
-  },
-} as const;
-
 export function ConnectPerplScreen(props: ConnectPerplProps): ReactElement {
   const {
-    address = "0x1234…abcd",
-    step = 1,
-    error = null,
+    address,
     busy = false,
-    onEnroll,
-    onImport,
+    error = null,
+    onEnrollNew,
+    onImportKey,
     onGoFund,
     onRetry,
     onBack,
   } = props;
+  const [showImport, setShowImport] = useState(false);
+  const [apiKey, setApiKey] = useState("");
+  const [privateKey, setPrivateKey] = useState("");
+
+  const importReady =
+    apiKey.trim().length >= 8 && /^0x[0-9a-fA-F]{64}$/.test(privateKey.trim());
 
   return (
     <View style={styles.screen}>
@@ -64,111 +53,234 @@ export function ConnectPerplScreen(props: ConnectPerplProps): ReactElement {
           onPress={() => onBack?.()}
           style={styles.back}
         >
-          <Text style={styles.backLabel}>‹ Back</Text>
+          <Ionicons name="chevron-back" size={20} color={SECONDARY} />
+          <Text style={styles.backLabel}>Back</Text>
         </Pressable>
 
-        <View style={styles.heading}>
-          <Text style={text.title}>Connect trading</Text>
-          <Text style={text.small}>Enroll one wallet to copy trades.</Text>
-        </View>
+        <Text style={styles.title}>Connect trading</Text>
+        <Text style={styles.subtitle}>
+          Enroll a trading key for this wallet. One passkey signature — the key
+          itself is generated on this device.
+        </Text>
 
-        <View style={styles.steps}>
-          {STEPS.map((label, index) => {
-            const n = (index + 1) as 1 | 2 | 3;
-            const variant: TagVariant = n < step ? "done" : n === step ? "active" : "todo";
-            const prefix = n < step ? "✓ " : "";
-            return (
-              <Tag key={label} variant={variant}>
-                {`${prefix}${label}`}
-              </Tag>
-            );
-          })}
-        </View>
-
-        <Card>
-          <Text style={text.caption}>Wallet</Text>
+        <View style={styles.card}>
+          <Text style={styles.caption}>WALLET</Text>
           <View style={styles.walletRow}>
             <Text style={styles.mono}>{truncate(address)}</Text>
-            <Tag variant="soft">EIP-712</Tag>
+            <View style={styles.eipTag}>
+              <Text style={styles.eipLabel}>EIP-712</Text>
+            </View>
           </View>
-          <Card variant="muted" padding={spacing.md}>
-            <Text style={text.small}>
-              Sign once with your passkey. No seed phrase leaves this device.
-            </Text>
-          </Card>
-        </Card>
+          <View style={styles.steps}>
+            {["Payload", "Sign", "Confirm"].map((label, index) => (
+              <View
+                key={label}
+                style={[styles.step, busy && index === 1 ? styles.stepActive : null]}
+              >
+                <Text
+                  style={[
+                    styles.stepLabel,
+                    busy && index === 1 ? styles.stepLabelActive : null,
+                  ]}
+                >
+                  {index + 1} · {label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
 
         {error ? (
           <View style={styles.errorCard}>
-            {error.code ? <Text style={styles.errorCode}>{error.code}</Text> : null}
+            {error.code ? (
+              <Text style={styles.errorCode}>{error.code}</Text>
+            ) : null}
             <Text style={styles.errorMessage}>{error.message}</Text>
-            <LinkButton title="Try again" onPress={() => onRetry?.()} />
+            {onRetry ? (
+              <Pressable
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={onRetry}
+                style={styles.retry}
+              >
+                <Text style={styles.retryLabel}>Try again</Text>
+              </Pressable>
+            ) : null}
           </View>
         ) : null}
 
-        <View style={styles.actions}>
-          <Button
-            title={busy ? "Waiting for passkey…" : "Enroll this wallet"}
-            primary
-            disabled={busy}
-            onPress={() => onEnroll?.()}
-          />
-          <Button title="Import existing key" onPress={() => onImport?.()} />
-          <LinkButton title="I haven't funded yet →" onPress={() => onGoFund?.()} />
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Enroll new trading key"
+          disabled={busy}
+          onPress={() => onEnrollNew?.()}
+          style={({ pressed }) => [
+            styles.primary,
+            busy || pressed ? styles.pressed : null,
+          ]}
+        >
+          <Text style={styles.primaryLabel}>
+            {busy ? "Waiting for passkey…" : "Enroll new trading key"}
+          </Text>
+        </Pressable>
 
-        <Text style={styles.footnote}>
-          Builder fees are injected server-side per fill.
-        </Text>
+        {showImport ? (
+          <View style={styles.card}>
+            <Text style={styles.caption}>IMPORT FROM PERPL WEB UI</Text>
+            <Text style={styles.hint}>
+              Create a key at testnet.perpl.xyz/apikeys, then paste the token
+              and private key here.
+            </Text>
+            <Text style={styles.fieldLabel}>API token</Text>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!busy}
+              onChangeText={setApiKey}
+              placeholder="Paste X-API-Key token"
+              placeholderTextColor={MUTED}
+              style={styles.input}
+              value={apiKey}
+            />
+            <Text style={styles.fieldLabel}>Private key (0x…64 hex)</Text>
+            <TextInput
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!busy}
+              onChangeText={setPrivateKey}
+              placeholder="0x…"
+              placeholderTextColor={MUTED}
+              secureTextEntry
+              style={[styles.input, styles.monoInput]}
+              value={privateKey}
+            />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Import trading key"
+              disabled={busy || !importReady}
+              onPress={() =>
+                onImportKey?.({
+                  apiKey: apiKey.trim(),
+                  privateKey: privateKey.trim(),
+                })
+              }
+              style={({ pressed }) => [
+                styles.secondary,
+                busy || !importReady || pressed ? styles.pressed : null,
+              ]}
+            >
+              <Text style={styles.secondaryLabel}>Import key</Text>
+            </Pressable>
+          </View>
+        ) : (
+          <Pressable
+            accessibilityRole="button"
+            disabled={busy}
+            hitSlop={8}
+            onPress={() => setShowImport(true)}
+            style={styles.link}
+          >
+            <Text style={styles.linkLabel}>Have a key already? Import it</Text>
+          </Pressable>
+        )}
+
+        <Pressable
+          accessibilityRole="button"
+          disabled={busy}
+          hitSlop={8}
+          onPress={() => onGoFund?.()}
+          style={styles.link}
+        >
+          <Text style={styles.linkLabel}>I haven't funded yet →</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  actions: { alignItems: "center", gap: spacing.sm },
-  back: { alignSelf: "flex-start", paddingVertical: 4 },
-  backLabel: { color: palette.graphite, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  errorCard: {
-    backgroundColor: palette.errorSoft,
-    borderRadius: radii.lg,
-    gap: spacing.xs,
-    padding: spacing.md,
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
+  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  caption: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 1, lineHeight: 14 },
+  card: {
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 12,
+    padding: 16,
   },
-  errorCode: {
-    color: palette.error,
-    fontFamily: "Menlo",
-    fontSize: 12,
-    lineHeight: 14,
-  },
-  errorMessage: { color: palette.graphite, fontSize: 13, fontWeight: "400", lineHeight: 19 },
-  footnote: { color: palette.ash, fontSize: 12, fontWeight: "400", lineHeight: 16, textAlign: "center" },
-  heading: { gap: 4 },
-  mono: {
-    color: palette.text,
-    flex: 1,
-    fontFamily: "Menlo",
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  screen: { backgroundColor: palette.bg, flex: 1 },
-  scroll: {
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-  },
-  steps: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs },
-  tag: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    borderRadius: radii.pill,
-    flexDirection: "row",
+  eipLabel: { color: TEAL, fontSize: 11, fontWeight: "700" },
+  eipTag: {
+    backgroundColor: "rgba(94, 234, 212, 0.12)",
+    borderRadius: 9999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  tagLabel: { fontSize: 12, fontWeight: "500", lineHeight: 15 },
-  walletRow: { alignItems: "center", flexDirection: "row", gap: spacing.sm },
+  errorCard: {
+    backgroundColor: "rgba(248, 113, 113, 0.10)",
+    borderColor: "rgba(248, 113, 113, 0.35)",
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+    padding: 14,
+  },
+  errorCode: { color: "#F87171", fontFamily: "Menlo", fontSize: 12, lineHeight: 14 },
+  errorMessage: { color: SECONDARY, fontSize: 13, lineHeight: 19 },
+  fieldLabel: { color: SECONDARY, fontSize: 13, fontWeight: "600" },
+  hint: { color: MUTED, fontSize: 13, lineHeight: 19 },
+  input: {
+    backgroundColor: SHEET,
+    borderColor: BORDER,
+    borderRadius: 14,
+    borderWidth: 1,
+    color: INK,
+    fontSize: 15,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  link: { alignItems: "center", paddingVertical: 6 },
+  linkLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
+  mono: { color: INK, flex: 1, fontFamily: "Menlo", fontSize: 13, lineHeight: 18 },
+  monoInput: { fontFamily: "Menlo" },
+  pressed: { opacity: 0.6 },
+  primary: {
+    alignItems: "center",
+    backgroundColor: INK,
+    borderRadius: 16,
+    justifyContent: "center",
+    minHeight: 56,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+  },
+  primaryLabel: { color: "#FFFFFF", fontSize: 15, fontWeight: "700", lineHeight: 20 },
+  retry: { alignSelf: "flex-start", paddingVertical: 4 },
+  retryLabel: { color: INK, fontSize: 14, fontWeight: "600" },
+  screen: { backgroundColor: BG, flex: 1 },
+  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
+  secondary: {
+    alignItems: "center",
+    backgroundColor: CARD_SOFT,
+    borderRadius: 16,
+    justifyContent: "center",
+    minHeight: 52,
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+  },
+  secondaryLabel: { color: INK, fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  step: {
+    backgroundColor: SHEET,
+    borderRadius: 9999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  stepActive: { backgroundColor: INK },
+  stepLabel: { color: MUTED, fontSize: 12, fontWeight: "600" },
+  stepLabelActive: { color: "#FFFFFF" },
+  steps: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  subtitle: { color: SECONDARY, fontSize: 14, lineHeight: 21 },
+  title: { color: INK, fontSize: 24, fontWeight: "800", letterSpacing: -0.4, lineHeight: 32 },
+  walletRow: { alignItems: "center", flexDirection: "row", gap: 12 },
 });
 
 export default ConnectPerplScreen;

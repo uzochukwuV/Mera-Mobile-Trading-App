@@ -1,142 +1,64 @@
-import { useState, type ReactElement, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { Card } from "../ui";
-import { palette, radii, spacing, text } from "../theme";
+import { useState, type ReactElement } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { coinColor } from "./coinMeta";
+import {
+  BG,
+  BORDER,
+  CARD,
+  DOWN,
+  INK,
+  MUTED,
+  SECONDARY,
+  SHEET,
+  TEAL,
+  UP,
+} from "./homeTheme";
 import type { TradeFillRow, TradesProps } from "./types";
-
-const DEFAULT_FILLS: TradeFillRow[] = [
-  {
-    id: "1",
-    market: "BTC",
-    side: "Long",
-    size: "0.05",
-    price: "67,410.5",
-    time: "09:41",
-    status: "Filled",
-    source: "Copy",
-  },
-  {
-    id: "2",
-    market: "ETH",
-    side: "Short",
-    size: "0.80",
-    price: "3,512.8",
-    time: "09:12",
-    status: "Open",
-    source: "Manual",
-  },
-  {
-    id: "3",
-    market: "SOL",
-    side: "Long",
-    size: "2.00",
-    price: "172.44",
-    time: "08:57",
-    status: "Partial",
-    source: "Copy",
-  },
-  {
-    id: "4",
-    market: "BTC",
-    side: "Short",
-    size: "0.02",
-    price: "67,020.0",
-    time: "Yesterday",
-    status: "Cancelled",
-    source: "Manual",
-  },
-  {
-    id: "5",
-    market: "ETH",
-    side: "Long",
-    size: "1.40",
-    price: "3,488.2",
-    time: "Yesterday",
-    status: "Filled",
-    source: "Copy",
-  },
-];
 
 type Filter = "All" | "Copy" | "Manual";
 const FILTERS: Filter[] = ["All", "Copy", "Manual"];
 
-type TagVariant = "forest" | "fog" | "sunlit";
-
-function Tag({
-  variant,
-  children,
-}: {
-  variant: TagVariant;
-  children: ReactNode;
-}) {
-  const style = tagStyles[variant];
+function StatusTag({ status }: { status: TradeFillRow["status"] }) {
+  const tone =
+    status === "Filled"
+      ? { bg: "rgba(52, 211, 153, 0.14)", fg: UP }
+      : status === "Partial"
+        ? { bg: "rgba(251, 191, 36, 0.14)", fg: "#FBBF24" }
+        : status === "Open"
+          ? { bg: CARD, fg: SECONDARY }
+          : { bg: "rgba(248, 113, 113, 0.14)", fg: DOWN };
   return (
-    <View style={[styles.tag, style.container]}>
-      <Text style={[styles.tagLabel, style.label]}>{children}</Text>
+    <View style={[styles.tag, { backgroundColor: tone.bg }]}>
+      <Text style={[styles.tagLabel, { color: tone.fg }]}>{status}</Text>
     </View>
   );
 }
 
-const tagStyles = {
-  forest: {
-    container: { backgroundColor: palette.forest },
-    label: { color: palette.textInverse },
-  },
-  fog: {
-    container: { backgroundColor: palette.surfaceMuted },
-    label: { color: palette.graphite },
-  },
-  sunlit: {
-    container: { backgroundColor: palette.sunlitCream },
-    label: { color: palette.emberBrown },
-  },
-} as const;
-
-function statusVariant(status: TradeFillRow["status"]): TagVariant {
-  if (status === "Filled") return "forest";
-  if (status === "Partial") return "sunlit";
-  return "fog";
-}
-
 function sectionOf(row: TradeFillRow): string {
-  return row.time === "Yesterday" ? "Yesterday" : "Today";
+  return row.time === "Yesterday" || row.time === "" ? "Earlier" : "Today";
 }
 
-function FillRow({
-  row,
-  onPress,
-}: {
-  row: TradeFillRow;
-  onPress: () => void;
-}): ReactElement {
-  const filled = row.status === "Filled";
-  const arrow = filled ? "↙" : "↗";
-  const long = row.side === "Long";
+function RowContent({ row }: { row: TradeFillRow }): ReactElement {
   return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={({ pressed }) => [styles.row, pressed ? styles.pressed : null]}
-    >
-      <View style={styles.badgeWrap}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{row.market.slice(0, 1)}</Text>
-        </View>
-        <View
-          style={[
-            styles.arrowDot,
-            filled ? styles.arrowDotUp : styles.arrowDotDown,
-          ]}
-        >
-          <Text
-            style={[
-              styles.arrowGlyph,
-              filled ? styles.arrowUp : styles.arrowDown,
-            ]}
-          >
-            {arrow}
-          </Text>
-        </View>
+    <>
+      <View
+        style={[
+          styles.badge,
+          { backgroundColor: coinColor(row.market) },
+        ]}
+      >
+        <Text style={styles.badgeText}>
+          {row.market.slice(0, 1)}
+        </Text>
       </View>
       <View style={styles.rowMain}>
         <Text style={styles.rowTitle}>
@@ -147,20 +69,29 @@ function FillRow({
         </Text>
       </View>
       <View style={styles.rowRight}>
-        <Text style={[styles.amount, long ? styles.up : styles.down]}>
+        <Text
+          style={[
+            styles.amount,
+            row.side === "Long" ? styles.up : styles.down,
+          ]}
+        >
           {row.price}
         </Text>
-        <Tag variant={statusVariant(row.status)}>{row.status}</Tag>
+        <StatusTag status={row.status} />
       </View>
-    </Pressable>
+    </>
   );
 }
 
 export function TradesScreen(props: TradesProps): ReactElement {
   const {
-    fills = DEFAULT_FILLS,
-    realizedPnlToday = "+38.20",
+    fills = [],
+    realizedPnlToday = "+0.00",
     realizedPnlUp = true,
+    loading = false,
+    loadError = null,
+    refreshing = false,
+    onRefresh,
     onSelectFill,
     onBack,
   } = props;
@@ -182,28 +113,35 @@ export function TradesScreen(props: TradesProps): ReactElement {
 
   return (
     <View style={styles.screen}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={SECONDARY}
+            />
+          ) : undefined
+        }
+      >
         <Pressable
           accessibilityRole="button"
           hitSlop={8}
           onPress={() => onBack?.()}
           style={styles.back}
         >
-          <Text style={styles.backText}>‹ Back</Text>
+          <Ionicons name="chevron-back" size={20} color={SECONDARY} />
+          <Text style={styles.backLabel}>Back</Text>
         </Pressable>
-        <Text style={text.title}>Trades</Text>
+        <Text style={styles.title}>Trades</Text>
 
-        <Card style={styles.summary}>
-          <Text style={text.caption}>Today</Text>
-          <Text
-            style={[
-              styles.pnl,
-              realizedPnlUp ? styles.up : styles.down,
-            ]}
-          >
+        <View style={styles.summary}>
+          <Text style={styles.caption}>REALIZED TODAY</Text>
+          <Text style={[styles.pnl, realizedPnlUp ? styles.up : styles.down]}>
             {realizedPnlToday}
           </Text>
-        </Card>
+        </View>
 
         <View style={styles.chips}>
           {FILTERS.map((option) => {
@@ -214,15 +152,14 @@ export function TradesScreen(props: TradesProps): ReactElement {
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 onPress={() => setFilter(option)}
-                style={[
+                style={({ pressed }) => [
                   styles.chip,
                   active ? styles.chipActive : styles.chipIdle,
+                  pressed ? styles.pressed : null,
                 ]}
               >
                 <Text
-                  style={
-                    active ? styles.chipActiveLabel : styles.chipIdleLabel
-                  }
+                  style={active ? styles.chipActiveLabel : styles.chipIdleLabel}
                 >
                   {option}
                 </Text>
@@ -231,12 +168,37 @@ export function TradesScreen(props: TradesProps): ReactElement {
           })}
         </View>
 
-        {visible.length === 0 ? (
-          <Card style={styles.list} padding={spacing.sm}>
+        {loading && fills.length === 0 ? (
+          <View style={styles.loading}>
+            <ActivityIndicator size="large" color={TEAL} />
+            <Text style={styles.emptyBody}>Loading trades…</Text>
+          </View>
+        ) : loadError && fills.length === 0 ? (
+          <View style={styles.loading}>
+            <Text style={styles.emptyTitle}>Couldn't load trades</Text>
+            <Text style={styles.emptyBody}>{loadError}</Text>
+            {onRefresh ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={onRefresh}
+                style={({ pressed }) => [
+                  styles.retry,
+                  pressed ? styles.pressed : null,
+                ]}
+              >
+                <Text style={styles.retryLabel}>Try again</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : visible.length === 0 ? (
+          <View style={styles.list}>
             <View style={styles.empty}>
-              <Text style={text.bodyStrong}>No fills yet</Text>
+              <Text style={styles.emptyTitle}>No trades yet</Text>
+              <Text style={styles.emptyBody}>
+                Copy fills and manual orders land here.
+              </Text>
             </View>
-          </Card>
+          </View>
         ) : (
           sections.map((section) => (
             <View key={section.title} style={styles.section}>
@@ -246,14 +208,29 @@ export function TradesScreen(props: TradesProps): ReactElement {
                   {section.rows.length} transactions
                 </Text>
               </View>
-              <Card style={styles.list} padding={spacing.sm}>
+              <View style={styles.list}>
                 {section.rows.map((row, index) => (
                   <View key={row.id}>
                     {index > 0 ? <View style={styles.hairline} /> : null}
-                    <FillRow row={row} onPress={() => onSelectFill?.(row.id)} />
+                    {onSelectFill ? (
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => onSelectFill?.(row.id)}
+                      style={({ pressed }) => [
+                        styles.row,
+                        pressed ? styles.pressed : null,
+                      ]}
+                    >
+                      <RowContent row={row} />
+                    </Pressable>
+                    ) : (
+                    <View style={styles.row}>
+                      <RowContent row={row} />
+                    </View>
+                    )}
                   </View>
                 ))}
-              </Card>
+              </View>
             </View>
           ))
         )}
@@ -265,125 +242,97 @@ export function TradesScreen(props: TradesProps): ReactElement {
 const styles = StyleSheet.create({
   amount: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     fontVariant: ["tabular-nums"],
     lineHeight: 18,
   },
-  arrowDot: {
-    alignItems: "center",
-    borderRadius: radii.full,
-    bottom: -2,
-    height: 18,
-    justifyContent: "center",
-    position: "absolute",
-    right: -2,
-    width: 18,
-  },
-  arrowDotDown: { backgroundColor: palette.errorSoft },
-  arrowDotUp: { backgroundColor: palette.okSoft },
-  arrowDown: { color: palette.error },
-  arrowGlyph: { fontSize: 10, fontWeight: "600", lineHeight: 12 },
-  arrowUp: { color: palette.ok },
-  back: { alignSelf: "flex-start", paddingVertical: 4 },
-  backText: { color: palette.graphite, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
+  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
   badge: {
     alignItems: "center",
-    backgroundColor: palette.surfaceMuted,
-    borderRadius: radii.full,
-    height: 40,
+    borderRadius: 9999,
+    height: 44,
     justifyContent: "center",
-    width: 40,
+    width: 44,
   },
-  badgeText: { color: palette.text, fontSize: 15, fontWeight: "600" },
-  badgeWrap: { position: "relative" },
+  badgeText: { color: "#FFFFFF", fontSize: 17, fontWeight: "800" },
+  caption: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 1, lineHeight: 14 },
   chip: {
     alignItems: "center",
-    borderRadius: radii.pill,
+    borderRadius: 9999,
     justifyContent: "center",
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
-  chipActive: { backgroundColor: palette.primary },
-  chipActiveLabel: {
-    color: palette.textInverse,
-    fontSize: 13,
-    fontWeight: "500",
-    lineHeight: 18,
+  chipActive: { backgroundColor: INK },
+  chipActiveLabel: { color: "#FFFFFF", fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  chipIdle: { backgroundColor: CARD },
+  chipIdleLabel: { color: SECONDARY, fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  chips: { flexDirection: "row", gap: 8 },
+  down: { color: DOWN },
+  empty: { gap: 4, padding: 8 },
+  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
+  hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
+  list: {
+    backgroundColor: SHEET,
+    borderColor: BORDER,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
   },
-  chipIdle: { backgroundColor: palette.surfaceMuted },
-  chipIdleLabel: {
-    color: palette.graphite,
-    fontSize: 13,
-    fontWeight: "500",
-    lineHeight: 18,
-  },
-  chips: { flexDirection: "row", gap: spacing.xs },
-  down: { color: palette.error },
-  empty: { padding: spacing.sm },
-  hairline: { backgroundColor: palette.border, height: 1, width: "100%" },
-  list: { gap: 0 },
+  loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
   pnl: {
-    fontSize: 22,
-    fontWeight: "600",
+    fontSize: 26,
+    fontWeight: "800",
     fontVariant: ["tabular-nums"],
-    letterSpacing: -0.37,
-    lineHeight: 31,
+    letterSpacing: -0.5,
+    lineHeight: 32,
   },
   pressed: { opacity: 0.85 },
+  retry: {
+    alignItems: "center",
+    backgroundColor: CARD,
+    borderRadius: 9999,
+    marginTop: 8,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  retryLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
   row: {
     alignItems: "center",
     flexDirection: "row",
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
+    gap: 12,
+    paddingVertical: 12,
   },
-  rowDetail: {
-    color: palette.ash,
-    fontSize: 12,
-    fontWeight: "400",
-    lineHeight: 16,
-  },
+  rowDetail: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
   rowMain: { flex: 1, gap: 2 },
   rowRight: { alignItems: "flex-end", gap: 6 },
-  rowTitle: {
-    color: palette.text,
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 19,
+  rowTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  screen: { backgroundColor: BG, flex: 1 },
+  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
+  section: { gap: 8 },
+  sectionCount: { color: MUTED, fontSize: 12, fontWeight: "500", lineHeight: 15 },
+  sectionHeader: { alignItems: "baseline", flexDirection: "row", gap: 8 },
+  sectionTitle: { color: INK, fontSize: 16, fontWeight: "700", lineHeight: 22 },
+  summary: {
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 4,
+    padding: 16,
   },
-  screen: { backgroundColor: palette.bg, flex: 1 },
-  scroll: {
-    gap: spacing.md,
-    paddingBottom: spacing.xl,
-    paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-  },
-  section: { gap: spacing.xs },
-  sectionCount: {
-    color: palette.ash,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 15,
-  },
-  sectionHeader: {
-    alignItems: "baseline",
-    flexDirection: "row",
-    gap: spacing.xs,
-  },
-  sectionTitle: {
-    color: palette.text,
-    fontSize: 15,
-    fontWeight: "600",
-    lineHeight: 20,
-  },
-  summary: { padding: spacing.lg },
   tag: {
     alignSelf: "flex-start",
-    borderRadius: radii.pill,
+    borderRadius: 9999,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
-  tagLabel: { fontSize: 12, fontWeight: "500", lineHeight: 15 },
-  up: { color: palette.forest },
+  tagLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
+  title: { color: INK, fontSize: 24, fontWeight: "800", letterSpacing: -0.4, lineHeight: 32 },
+  up: { color: UP },
 });
 
 export default TradesScreen;

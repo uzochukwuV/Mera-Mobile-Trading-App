@@ -12,4 +12,6 @@ export { TraderProfileScreen } from "./TraderProfileScreen";
 export { CopyManagementScreen } from "./CopyManagementScreen";
 export { TournamentsScreen } from "./TournamentsScreen";
 export { AccountScreen } from "./AccountScreen";
+export { ExportScreen } from "./ExportScreen";
+export { WithdrawScreen } from "./WithdrawScreen";
 export * from "./types";

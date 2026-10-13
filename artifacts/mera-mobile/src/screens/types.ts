@@ -47,27 +47,36 @@ export type OnboardingProps = {
 };
 
 export type ConnectPerplProps = {
-  address?: string;
-  step?: 1 | 2 | 3;
-  error?: { code?: string; message: string } | null;
+  address: string;
   busy?: boolean;
-  onEnroll?: () => void;
-  onImport?: () => void;
+  error?: { code?: string; message: string } | null;
+  onEnrollNew?: () => void;
+  onImportKey?: (input: { apiKey: string; privateKey: string }) => void;
   onGoFund?: () => void;
   onRetry?: () => void;
   onBack?: () => void;
 };
 
 export type FundProps = {
-  available?: string;
-  locked?: string;
-  equity?: string;
-  progress?: number; // 0..1 toward the minimum
-  meetsMinimum?: boolean;
-  remaining?: string;
-  onOpenFaucet?: () => void;
-  onDeposited?: () => void;
-  onWithdraw?: () => void;
+  balance?: string;
+  minDeposit?: string;
+  oneClickBusy?: boolean;
+  oneClickError?: string | null;
+  oneClickDone?: boolean;
+  onEnableOneClick?: () => void;
+  onOpenSite?: () => void;
+  onContinue?: () => void;
+  onBack?: () => void;
+};
+
+export type ExportProps = {
+  credentialId?: string;
+  onBack?: () => void;
+};
+
+export type WithdrawProps = {
+  balance?: string;
+  onOpenSite?: () => void;
   onBack?: () => void;
 };
 
@@ -84,6 +93,12 @@ export type DashboardProps = {
   positions?: PositionRow[];
   copies?: CopyRow[];
   activity?: ActivityRow[];
+  loading?: boolean;
+  loadError?: string | null;
+  refreshing?: boolean;
+  onRefresh?: () => void;
+  perplConnected?: boolean;
+  onConnectPerpl?: () => void;
   onKillSwitch?: () => void;
   onCopyTrader?: () => void;
   onMarkets?: () => void;
@@ -102,11 +117,14 @@ export type MarketRow = {
 export type MarketsProps = {
   markets?: MarketRow[];
   search?: string;
+  refreshToken?: number;
   onSearchChange?: (value: string) => void;
-  onSelectMarket?: (id: number) => void;
+  onSelectMarket?: (id: number, symbol: string) => void;
 };
 
 export type PairDetailProps = {
+  marketId?: number;
+  refreshToken?: number;
   symbol?: string;
   mark?: string;
   changePct?: number;
@@ -118,7 +136,7 @@ export type PairDetailProps = {
   position?: PositionRow | null;
   onBack?: () => void;
   onCopyTrader?: () => void;
-  onTrade?: () => void;
+  onTrade?: (side: "long" | "short") => void;
 };
 
 export type TradeTicketProps = {
@@ -130,6 +148,7 @@ export type TradeTicketProps = {
   maxLeverage?: number;
   busy?: boolean;
   error?: { message: string } | null;
+  notice?: string | null;
   onSideChange?: (side: "long" | "short") => void;
   onSizeChange?: (value: string) => void;
   onLeverageChange?: (value: number) => void;
@@ -153,6 +172,10 @@ export type TradesProps = {
   fills?: TradeFillRow[];
   realizedPnlToday?: string;
   realizedPnlUp?: boolean;
+  loading?: boolean;
+  loadError?: string | null;
+  refreshing?: boolean;
+  onRefresh?: () => void;
   onSelectFill?: (id: string) => void;
   onBack?: () => void;
 };
@@ -169,6 +192,10 @@ export type LeaderRow = {
 export type DiscoverProps = {
   leaders?: LeaderRow[];
   sort?: string;
+  loading?: boolean;
+  loadError?: string | null;
+  refreshing?: boolean;
+  onRefresh?: () => void;
   onSortChange?: (sort: string) => void;
   onSelectTrader?: (id: string) => void;
 };
@@ -178,18 +205,24 @@ export type TraderProfileProps = {
   bio?: string;
   pnl30d?: string;
   pnlUp?: boolean;
+  pnl24h?: string;
   winRate?: string;
   sharpe?: string;
   followers?: string;
   following?: boolean;
   busy?: boolean;
+  loading?: boolean;
+  loadError?: string | null;
   positions?: PositionRow[];
+  fills?: { market: string; side: string; price: string; time: string }[];
   allocation?: string;
+  copyError?: string | null;
   onBack?: () => void;
   onFollow?: () => void;
   onUnfollow?: () => void;
   onAllocationChange?: (value: string) => void;
   onStartCopy?: () => void;
+  onRetry?: () => void;
 };
 
 export type CopySettingRow = {
@@ -201,6 +234,10 @@ export type CopySettingRow = {
 
 export type CopyManagementProps = {
   copies?: CopySettingRow[];
+  loading?: boolean;
+  loadError?: string | null;
+  refreshing?: boolean;
+  onRefresh?: () => void;
   onPause?: (leaderId: string) => void;
   onResume?: (leaderId: string) => void;
   onStop?: (leaderId: string) => void;
@@ -220,8 +257,12 @@ export type TournamentRow = {
 export type TournamentsProps = {
   tournaments?: TournamentRow[];
   joinedIds?: string[];
+  joiningId?: string | null;
+  loading?: boolean;
+  loadError?: string | null;
   onJoin?: (id: string) => void;
   onSelect?: (id: string) => void;
+  onRetry?: () => void;
 };
 
 export type AccountProps = {
@@ -229,9 +270,21 @@ export type AccountProps = {
   handle?: string;
   connectedAt?: string;
   keyCount?: number;
+  keys?: { id: string; label: string }[];
+  revokingId?: string | null;
+  perplStatus?: string;
+  handleError?: string | null;
+  savingHandle?: boolean;
+  leaderProfile?: { isPublic: boolean; bio: string } | null;
+  savingProfile?: boolean;
+  profileError?: string | null;
+  onConnectPerpl?: () => void;
   onLock?: () => void;
   onExport?: () => void;
   onSignOut?: () => void;
-  onRevokeKey?: () => void;
+  onRevokeKey?: (id: string) => void;
   onEditProfile?: () => void;
+  onSaveHandle?: (handle: string) => void;
+  onWithdraw?: () => void;
+  onSaveLeaderProfile?: (input: { isPublic: boolean; bio: string }) => void;
 };

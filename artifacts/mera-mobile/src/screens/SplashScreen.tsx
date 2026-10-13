@@ -3,14 +3,14 @@ import { Image, StatusBar, StyleSheet, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import type { SplashProps } from "./types";
 
-const WAVE = "#1B2029";
+const WAVE = "#E2E7EE";
 
-// Black splash with the Pera mark centered over faint wave arcs,
-// per the reference. No text, no status — it auto-advances.
+// White splash with the Mera mark centered over faint wave arcs.
+// No text, no status — it auto-advances.
 export function SplashScreen(_: SplashProps = {}): ReactElement {
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="dark-content" />
       <Svg
         viewBox="0 0 720 460"
         preserveAspectRatio="xMidYMax slice"
@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   },
   screen: {
     alignItems: "center",
-    backgroundColor: "#060809",
+    backgroundColor: "#FFFFFF",
     flex: 1,
     justifyContent: "center",
   },
