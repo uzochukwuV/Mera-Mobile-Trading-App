@@ -54,6 +54,7 @@ import {
   signEnrollTypedData,
   signPopDigest,
   submitOrder,
+  toMarketRow,
   unfollowLeader,
   updateHandle,
   type LiveDashboard,
@@ -154,6 +155,9 @@ export default function App() {
     undefined,
   );
   const [selectedMarketSymbol, setSelectedMarketSymbol] = useState<string | undefined>(
+    undefined,
+  );
+  const [selectedMarketMark, setSelectedMarketMark] = useState<string | undefined>(
     undefined,
   );
   // Trade ticket (S8).
@@ -1568,12 +1572,12 @@ export default function App() {
               }
               onBack={pop}
               onTrade={(side) => openTicket(side)}
-              onCopyTrader={() => push("profile")}
+              onCopyTrader={() => goTab("discover")}
             />
           ) : top === "ticket" ? (
             <TradeTicketScreen
               symbol={selectedMarketSymbol ? `${selectedMarketSymbol}-PERP` : undefined}
-              mark={dash?.positions.find((p) => p.symbol === selectedMarketSymbol)?.mark}
+              mark={selectedMarketMark ?? dash?.positions.find((p) => p.symbol === selectedMarketSymbol)?.mark}
               balance={dash?.available}
               side={ticketSide}
               size={ticketSize}
@@ -1692,6 +1696,14 @@ export default function App() {
               onSelectMarket={(id, symbol) => {
                 setSelectedMarketId(id);
                 setSelectedMarketSymbol(symbol);
+                setSelectedMarketMark(undefined);
+                // Live mark for the ticket (positions only cover held markets).
+                void getMarketsCached()
+                  .then((markets) => {
+                    const market = markets.find((m) => m.market_id === id);
+                    if (market) setSelectedMarketMark(toMarketRow(market).mark);
+                  })
+                  .catch(() => undefined);
                 push("pair");
               }}
             />
