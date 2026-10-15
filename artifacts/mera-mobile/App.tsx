@@ -487,6 +487,12 @@ export default function App() {
         );
         return;
       }
+      if (caught instanceof ApiError && caught.code === "enrollment_failed") {
+        setConnectError(
+          "Perpl rejected the enrollment — use “Import from Perpl web UI” below: create a key at testnet.perpl.xyz/apikeys and paste it here.",
+        );
+        return;
+      }
       setConnectError(describeError(caught));
     } finally {
       setConnectBusy(false);
