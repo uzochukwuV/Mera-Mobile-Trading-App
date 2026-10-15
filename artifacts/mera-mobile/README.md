@@ -39,7 +39,7 @@ export MERA_RP_ID=passkeys.example.com
 
 Use a host name without `https://` or a path.
 
-The app ID is `xyz.category.mera.demo`. Change the iOS bundle identifier and
+The app ID is `com.pera.mobile`. Change the iOS bundle identifier and
 Android package in [app.json](app.json) if the app uses another ID.
 
 ### iOS
@@ -54,7 +54,7 @@ Android package in [app.json](app.json) if the app uses another ID.
    https://<rpId>/.well-known/apple-app-site-association
    ```
 
-[app.json](app.json) adds `webcredentials:mera.category.xyz` to the app's
+[app.json](app.json) adds `webcredentials:01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app` to the app's
 Associated Domains when Expo creates the iOS project.
 
 ### Android

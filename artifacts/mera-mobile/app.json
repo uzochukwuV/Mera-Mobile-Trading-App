@@ -8,12 +8,12 @@
     "scheme": "mera-demo-mobile",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "xyz.category.mera.demo",
+      "bundleIdentifier": "com.pera.mobile",
       "supportsTablet": false,
-      "associatedDomains": ["webcredentials:mera.category.xyz"]
+      "associatedDomains": ["webcredentials:01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app"]
     },
     "android": {
-      "package": "xyz.category.mera.demo"
+      "package": "com.pera.mobile"
     },
     "web": {
       "favicon": "./assets/images/icon.png"
@@ -27,7 +27,7 @@
       ]
     ],
     "extra": {
-      "rpId": "mera.category.xyz",
+      "rpId": "01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app",
       "perplApiUrl": "https://cushy-pavement-untreated.ngrok-free.dev",
       "supabaseUrl": "https://vmbxfiiysyrauuhisght.supabase.co",
       "supabaseAnonKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZtYnhmaWl5c3lyYXV1aGlzZ2h0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE4NTE3MDYsImV4cCI6MjEwNzQyNzcwNn0.NEPWYJrxClUjukNjvjX_eN-2P74L2GWvMU9moTsnrac"

@@ -305,7 +305,7 @@ async function assertNativeRpAssociation(id: string): Promise<void> {
   }
   if (isAndroid) {
     const packageName =
-      Constants.expoConfig?.android?.package ?? "xyz.category.mera.demo";
+      Constants.expoConfig?.android?.package ?? "com.pera.mobile";
     const entries = Array.isArray(association) ? association : [];
     const associated = entries.some((entry) => {
       if (!entry || typeof entry !== "object") return false;

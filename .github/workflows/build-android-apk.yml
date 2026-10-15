@@ -17,8 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      MERA_ANDROID_PACKAGE: ${{ vars.MERA_ANDROID_PACKAGE || 'xyz.category.mera.demo' }}
-      MERA_RP_HOST: ${{ vars.MERA_RP_HOST || 'mera.category.xyz' }}
+      MERA_ANDROID_PACKAGE: ${{ vars.MERA_ANDROID_PACKAGE || 'com.pera.mobile' }}
+      MERA_RP_HOST: ${{ vars.MERA_RP_HOST || '01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app' }}
 
     steps:
       - name: Check out repository

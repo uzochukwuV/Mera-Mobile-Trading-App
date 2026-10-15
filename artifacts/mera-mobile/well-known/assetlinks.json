@@ -3,7 +3,7 @@
     "relation": ["delegate_permission/common.get_login_creds"],
     "target": {
       "namespace": "android_app",
-      "package_name": "xyz.category.mera.demo",
+      "package_name": "com.pera.mobile",
       "sha256_cert_fingerprints": ["SHA256_FINGERPRINT"]
     }
   }
