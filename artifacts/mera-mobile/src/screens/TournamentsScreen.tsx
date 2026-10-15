@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { TopFilterBar } from "./TabChrome";
+import { Ionicons } from "@expo/vector-icons";
 import {
   AMBER,
   AMBER_SOFT,
@@ -18,13 +18,12 @@ import {
   DOWN_SOFT,
   INK,
   MUTED,
-  PAPER,
   RADIUS,
   SECONDARY,
-  SHEET,
   UP,
   UP_SOFT,
 } from "./homeTheme";
+import { PillButton } from "./ui";
 import type { TournamentRow, TournamentsProps } from "./types";
 
 function StatusTag({ status }: { status: TournamentRow["status"] }) {
@@ -59,43 +58,42 @@ export function TournamentsScreen(props: TournamentsProps = {}): ReactElement {
 
   return (
     <View style={styles.screen}>
-      <TopFilterBar />
-      <View style={styles.sheet}>
-        <ScrollView contentContainerStyle={styles.scroll}>
-          <Text style={styles.title}>Contests</Text>
-          {loadError && !isEmpty ? (
-            <View style={styles.notice}>
-              <Text style={styles.noticeText}>{loadError}</Text>
-            </View>
-          ) : null}
-          {loading && isEmpty ? (
-            <View style={styles.loading}>
-              <ActivityIndicator size="large" color={INK} />
-              <Text style={styles.emptyBody}>Loading contests…</Text>
-            </View>
-          ) : loadError && isEmpty ? (
-            <View style={styles.loading}>
-              <Text style={styles.emptyTitle}>Couldn't load contests</Text>
-              <Text style={styles.emptyBody}>{loadError}</Text>
-              {onRetry ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={onRetry}
-                  style={({ pressed }) => [
-                    styles.retry,
-                    pressed ? styles.pressed : null,
-                  ]}
-                >
-                  <Text style={styles.retryLabel}>Try again</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : isEmpty ? (
-            <View style={styles.loading}>
-              <Text style={styles.emptyTitle}>No contests right now</Text>
-              <Text style={styles.emptyBody}>Check back soon.</Text>
-            </View>
-          ) : (
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Contests</Text>
+        {tournaments.length > 0 ? (
+          <View style={styles.count}>
+            <Text style={styles.countLabel}>{tournaments.length}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {loadError && !isEmpty ? (
+          <View style={styles.notice}>
+            <Text style={styles.noticeText}>{loadError}</Text>
+          </View>
+        ) : null}
+        {loading && isEmpty ? (
+          <View style={styles.loading}>
+            <ActivityIndicator size="large" color={INK} />
+            <Text style={styles.emptyBody}>Loading contests…</Text>
+          </View>
+        ) : loadError && isEmpty ? (
+          <View style={styles.loading}>
+            <Ionicons name="trophy-outline" size={28} color={MUTED} />
+            <Text style={styles.emptyTitle}>Couldn't load contests</Text>
+            <Text style={styles.emptyBody}>{loadError}</Text>
+            {onRetry ? (
+              <PillButton label="Try again" variant="secondary" onPress={onRetry} />
+            ) : null}
+          </View>
+        ) : isEmpty ? (
+          <View style={styles.loading}>
+            <Ionicons name="trophy-outline" size={28} color={MUTED} />
+            <Text style={styles.emptyTitle}>No contests right now</Text>
+            <Text style={styles.emptyBody}>Check back soon.</Text>
+          </View>
+        ) : (
           tournaments.map((t) => {
             const joined = joinedIds.includes(t.id);
             const joining = joiningId === t.id;
@@ -103,6 +101,7 @@ export function TournamentsScreen(props: TournamentsProps = {}): ReactElement {
               <Pressable
                 key={t.id}
                 accessibilityRole="button"
+                accessibilityLabel={`${t.name}, ${t.status}`}
                 onPress={() => onSelect?.(t.id)}
                 style={({ pressed }) => [
                   styles.card,
@@ -110,118 +109,103 @@ export function TournamentsScreen(props: TournamentsProps = {}): ReactElement {
                 ]}
               >
                 <View style={styles.headRow}>
-                  <Text style={styles.name}>{t.name}</Text>
+                  <View style={styles.trophy}>
+                    <Ionicons name="trophy" size={20} color={AMBER} />
+                  </View>
+                  <View style={styles.headMain}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {t.name}
+                    </Text>
+                    <Text style={styles.meta}>
+                      {t.entrants} entrants · {t.prize}
+                    </Text>
+                  </View>
                   <StatusTag status={t.status} />
                 </View>
-                <Text style={styles.meta}>
-                  {t.entrants} entrants · {t.prize}
-                </Text>
                 {t.rank ? (
-                  <Text style={styles.rank}>You rank {t.rank}</Text>
+                  <View style={styles.rankRow}>
+                    <Ionicons name="medal-outline" size={14} color={AMBER} />
+                    <Text style={styles.rank}>You rank {t.rank}</Text>
+                  </View>
                 ) : null}
-                <View style={styles.actionRow}>
-                  {joined ? (
-                    <View style={styles.joined}>
-                      <Text style={styles.joinedLabel}>Joined ✓</Text>
-                    </View>
-                  ) : t.status === "Ended" ? null : (
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Join ${t.name}`}
-                      disabled={joining}
-                      onPress={() => onJoin?.(t.id)}
-                      style={({ pressed }) => [
-                        styles.join,
-                        joining || pressed ? styles.pressed : null,
-                      ]}
-                    >
-                      <Text style={styles.joinLabel}>
-                        {joining ? "Joining…" : "Join"}
-                      </Text>
-                    </Pressable>
-                  )}
-                </View>
+                {joined ? (
+                  <View style={styles.joined}>
+                    <Ionicons name="checkmark" size={14} color={UP} />
+                    <Text style={styles.joinedLabel}>Joined</Text>
+                  </View>
+                ) : t.status === "Ended" ? null : (
+                  <PillButton
+                    label={joining ? "Joining…" : `Join · ${t.prize}`}
+                    busy={joining}
+                    onPress={() => onJoin?.(t.id)}
+                  />
+                )}
               </Pressable>
             );
           })
-          )}
-        </ScrollView>
-      </View>
+        )}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  actionRow: { alignItems: "flex-start", marginTop: 4 },
+  screen: { backgroundColor: BG, flex: 1 },
+  header: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  headerTitle: { color: INK, fontSize: 26, fontWeight: "700", lineHeight: 32 },
+  count: {
+    alignItems: "center",
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 28,
+    minWidth: 28,
+    paddingHorizontal: 8,
+  },
+  countLabel: { color: SECONDARY, fontSize: 13, fontWeight: "700" },
+  scroll: { gap: 12, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 8 },
   card: {
     backgroundColor: CARD,
     borderColor: BORDER,
-    borderRadius: 20,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
-    gap: 6,
-    marginHorizontal: 20,
+    gap: 12,
     padding: 16,
   },
-  headRow: {
+  pressed: { opacity: 0.85 },
+  headRow: { alignItems: "center", flexDirection: "row", gap: 12 },
+  trophy: {
     alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
-    justifyContent: "space-between",
-  },
-  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
-  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
-  join: {
-    alignItems: "center",
-    backgroundColor: INK,
+    backgroundColor: AMBER_SOFT,
     borderRadius: RADIUS.pill,
+    height: 44,
     justifyContent: "center",
-    minHeight: 56,
-    paddingHorizontal: 24,
-    paddingVertical: 8,
+    width: 44,
   },
-  joinLabel: { color: PAPER, fontSize: 16, fontWeight: "600", lineHeight: 22 },
+  headMain: { flex: 1, gap: 2 },
+  name: { color: INK, fontSize: 17, fontWeight: "700", lineHeight: 22 },
+  meta: { color: SECONDARY, fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  rankRow: { alignItems: "center", flexDirection: "row", gap: 6 },
+  rank: { color: MUTED, fontSize: 12, fontWeight: "600", lineHeight: 16 },
   joined: {
     alignItems: "center",
-    backgroundColor: SHEET,
+    borderColor: BORDER,
     borderRadius: RADIUS.pill,
-    justifyContent: "center",
-    minHeight: 40,
-    paddingHorizontal: 24,
-    paddingVertical: 8,
-  },
-  joinedLabel: { color: SECONDARY, fontSize: 13, fontWeight: "600", lineHeight: 18 },
-  loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
-  meta: { color: SECONDARY, fontSize: 13, fontWeight: "500", lineHeight: 18 },
-  name: { color: INK, flex: 1, fontSize: 18, fontWeight: "700", lineHeight: 26 },
-  notice: {
-    backgroundColor: DOWN_SOFT,
-    borderColor: DOWN_SOFT,
-    borderRadius: 16,
     borderWidth: 1,
-    padding: 12,
-  },
-  noticeText: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 18, textAlign: "center" },
-  pressed: { opacity: 0.85 },
-  rank: { color: MUTED, fontSize: 12, fontWeight: "500", lineHeight: 16 },
-  retry: {
-    alignItems: "center",
-    backgroundColor: CARD,
-    borderRadius: RADIUS.pill,
-    marginTop: 8,
-    paddingHorizontal: 24,
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
     paddingVertical: 12,
   },
-  retryLabel: { color: INK, fontSize: 14, fontWeight: "600" },
-  screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 12, paddingBottom: 28, paddingTop: 6 },
-  sheet: {
-    backgroundColor: SHEET,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    flex: 1,
-    overflow: "hidden",
-    paddingTop: 12,
-  },
+  joinedLabel: { color: SECONDARY, fontSize: 14, fontWeight: "600", lineHeight: 20 },
   tag: {
     alignItems: "center",
     alignSelf: "flex-start",
@@ -233,14 +217,15 @@ const styles = StyleSheet.create({
   },
   tagDot: { borderRadius: RADIUS.pill, height: 6, width: 6 },
   tagLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  title: {
-    color: INK,
-    fontSize: 26,
-    fontWeight: "700",
-    letterSpacing: -0.4,
-    lineHeight: 32,
-    paddingHorizontal: 20,
+  loading: { alignItems: "center", gap: 8, paddingVertical: 48 },
+  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
+  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  notice: {
+    backgroundColor: DOWN_SOFT,
+    borderRadius: RADIUS.card,
+    padding: 12,
   },
+  noticeText: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 18, textAlign: "center" },
 });
 
 export default TournamentsScreen;
