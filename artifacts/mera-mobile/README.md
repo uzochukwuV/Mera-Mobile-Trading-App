@@ -28,16 +28,9 @@ The app can:
 
 ### Choose the passkey domain
 
-The relying party ID is the host the passkeys belong to. It must match the host
+The relying party ID is `01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app`
+(set as `extra.rpId` in [app.json](app.json)). It must match the host
 that serves the files below.
-
-The demo defaults to `mera.category.xyz`. Set `MERA_RP_ID` to use another host:
-
-```bash
-export MERA_RP_ID=passkeys.example.com
-```
-
-Use a host name without `https://` or a path.
 
 The app ID is `com.pera.mobile`. Change the iOS bundle identifier and
 Android package in [app.json](app.json) if the app uses another ID.
@@ -47,7 +40,7 @@ Android package in [app.json](app.json) if the app uses another ID.
 1. Open
    [well-known/apple-app-site-association](well-known/apple-app-site-association).
 2. Replace `TEAM_ID` with the Apple team ID.
-3. Replace `xyz.category.mera.demo` if the bundle ID changed.
+3. Replace `com.pera.mobile` if the bundle ID changed.
 4. Serve the file at:
 
    ```text
@@ -60,7 +53,7 @@ Associated Domains when Expo creates the iOS project.
 ### Android
 
 1. Open [well-known/assetlinks.json](well-known/assetlinks.json).
-2. Replace `xyz.category.mera.demo` if the Android package changed.
+2. Replace `com.pera.mobile` if the Android package changed.
 3. Replace `SHA256_FINGERPRINT` with each Android signing certificate's SHA-256
    fingerprint.
 4. Serve the file at:
