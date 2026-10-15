@@ -31,6 +31,7 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
   const {
     symbol = "BTC-PERP",
     mark = "67,410.5",
+    balance,
     side = "long",
     size = "",
     leverage = 10,
@@ -51,6 +52,16 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
 
   const isLong = side === "long";
   const sideLabel = isLong ? "LONG" : "SHORT";
+  // Live notional from size × mark; fees are quoted server-side, unknown here.
+  const markNum = Number(mark.replace(/,/g, ""));
+  const sizeNum = Number(size);
+  const tradeValue =
+    Number.isFinite(markNum) &&
+    markNum > 0 &&
+    Number.isFinite(sizeNum) &&
+    sizeNum > 0
+      ? sizeNum * markNum
+      : null;
   const confirmTitle = busy
     ? "Submitting…"
     : isLong
@@ -159,14 +170,18 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
               value={size}
             />
             <Text style={styles.balance}>
-              Available balance: 0.00 aUSD
+              Available balance: {balance ?? "—"} aUSD
             </Text>
           </View>
 
           <View style={styles.summary}>
             <View style={styles.kvRow}>
               <Text style={styles.kvLabel}>Trade value</Text>
-              <Text style={styles.kvValue}>--</Text>
+              <Text style={styles.kvValue}>
+                {tradeValue === null
+                  ? "--"
+                  : `$${tradeValue.toLocaleString("en-US", { maximumFractionDigits: 2 })}`}
+              </Text>
             </View>
             <View style={styles.kvRow}>
               <Text style={styles.kvLabel}>Fees</Text>

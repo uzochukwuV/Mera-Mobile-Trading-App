@@ -31,6 +31,7 @@ import {
   getLeaders,
   getMarketsCached,
   getMe,
+  isLongSide,
   getMyTournamentEntries,
   getTournaments,
   getTrades,
@@ -86,9 +87,9 @@ import {
 } from "./src/screens";
 import { spacing } from "./src/theme";
 
-// UI-only tour router (no backend): tabs per appflow §6 — Home · Markets ·
-// Traders · Contests · Account — with stack pushes for detail screens and
-// the S1→S3→S4 modal flow over first launch.
+// Tour router (tabs per appflow §6 — Home · Markets · Traders · Contests ·
+// Account — with stack pushes for detail screens). All screens render live
+// backend data with guarded fallbacks while loading.
 type TabKey = "dashboard" | "markets" | "discover" | "contests" | "account";
 type StackKey =
   | "connect"
@@ -119,6 +120,16 @@ const TABS: {
 
 function truncate(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
+}
+
+function formatConnectedAt(iso: string | null): string | undefined {
+  if (iso === null) return undefined;
+  const at = Date.parse(iso);
+  if (!Number.isFinite(at)) return undefined;
+  return new Date(at).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export default function App() {
@@ -158,7 +169,7 @@ export default function App() {
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
   const [perplAccounts, setPerplAccounts] = useState<
-    { id: string; label: string }[]
+    { id: string; label: string; connectedAt: string | null }[]
   >([]);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -292,6 +303,7 @@ export default function App() {
         active.map((a) => ({
           id: a.id,
           label: a.label ?? `Key ${a.id.slice(0, 6)}`,
+          connectedAt: a.connected_at,
         })),
       );
     } catch {
@@ -698,7 +710,7 @@ export default function App() {
         const size = Number(p.size_scaled) / 10 ** dec.size;
         const entry = Number(p.entry_price_scaled) / 10 ** dec.price;
         const last = p.last_price === null ? NaN : Number(p.last_price) / 10 ** dec.price;
-        const long = String(p.side).toLowerCase() === "long";
+        const long = isLongSide(p.side);
         const pnlValue =
           Number.isFinite(size) && Number.isFinite(entry) && Number.isFinite(last)
             ? (long ? 1 : -1) * (last - entry) * size
@@ -1395,6 +1407,7 @@ export default function App() {
             <TradeTicketScreen
               symbol={selectedMarketSymbol ? `${selectedMarketSymbol}-PERP` : undefined}
               mark={dash?.positions.find((p) => p.symbol === selectedMarketSymbol)?.mark}
+              balance={dash?.available}
               side={ticketSide}
               size={ticketSize}
               leverage={ticketLeverage}
@@ -1476,6 +1489,7 @@ export default function App() {
           ) : activeTour.tab === "markets" ? (
             <MarketsScreen
               refreshToken={marketsTick}
+              heldSymbols={dash?.positions.map((p) => p.symbol.toUpperCase())}
               onSelectMarket={(id, symbol) => {
                 setSelectedMarketId(id);
                 setSelectedMarketSymbol(symbol);
@@ -1517,6 +1531,10 @@ export default function App() {
                     : undefined
               }
               handle={meHandle ?? undefined}
+              connectedAt={formatConnectedAt(
+                perplAccounts.find((k) => k.connectedAt !== null)?.connectedAt ??
+                  null,
+              )}
               perplStatus={
                 perpl.state === "connected"
                   ? `Connected · ${perpl.keyCount} key${perpl.keyCount === 1 ? "" : "s"}`

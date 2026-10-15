@@ -116,6 +116,7 @@ export type MarketRow = {
 
 export type MarketsProps = {
   markets?: MarketRow[];
+  heldSymbols?: string[];
   search?: string;
   refreshToken?: number;
   onSearchChange?: (value: string) => void;
@@ -130,7 +131,6 @@ export type PairDetailProps = {
   changePct?: number;
   high?: string;
   low?: string;
-  funding?: string;
   openInterest?: string;
   volume?: string;
   position?: PositionRow | null;
@@ -142,6 +142,7 @@ export type PairDetailProps = {
 export type TradeTicketProps = {
   symbol?: string;
   mark?: string;
+  balance?: string;
   side?: "long" | "short";
   size?: string;
   leverage?: number;

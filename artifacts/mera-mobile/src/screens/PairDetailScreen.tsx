@@ -128,7 +128,6 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
     changePct: changeProp = 2.41,
     high: highProp = "68,900.0",
     low: lowProp = "65,120.3",
-    funding = "0.0100%",
     openInterest: oiProp = "412M",
     volume: volumeProp = "1.2B",
     position = null,
@@ -233,7 +232,6 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
     { label: "Low", value: low },
     { label: "24h volume", value: volume },
     { label: "Open interest", value: openInterest },
-    { label: "Funding", value: funding },
     { label: "Mark", value: mark },
   ];
 

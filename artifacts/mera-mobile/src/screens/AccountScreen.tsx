@@ -28,7 +28,7 @@ export function AccountScreen(props: AccountProps = {}): ReactElement {
   const {
     address = "0x7f3a…9c21",
     handle = "anon-trader",
-    connectedAt = "Jun 12",
+    connectedAt,
     keyCount = 1,
     keys,
     revokingId = null,
@@ -85,7 +85,9 @@ export function AccountScreen(props: AccountProps = {}): ReactElement {
                 <View style={styles.addressPill}>
                   <Text style={styles.address}>{address}</Text>
                 </View>
-                <Text style={styles.caption}>Key connected {connectedAt}</Text>
+                {connectedAt ? (
+                  <Text style={styles.caption}>Key connected {connectedAt}</Text>
+                ) : null}
               </View>
             </View>
             <View style={styles.keysRow}>

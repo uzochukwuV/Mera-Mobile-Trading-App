@@ -240,7 +240,7 @@ async function authedFetch<T>(
 type ApiPosition = {
   market_id: number;
   symbol: string | null;
-  side: string;
+  side: string | number;
   size_scaled: string;
   entry_price_scaled: string;
   leverage_hundredths: number;
@@ -253,7 +253,7 @@ type ApiPosition = {
 type ApiCopySetting = {
   leader_id: string;
   leader_handle: string | null;
-  allocation_usd: number;
+  allocation_usd: number | string;
   paused_reason: string | null;
 };
 
@@ -280,8 +280,8 @@ async function getDashboard(): Promise<DashboardData> {
   const body = await authedFetch<{
     equity?: string | number | null;
     equityAt?: string | null;
-    balance?: number | null;
-    locked?: number | null;
+    balance?: number | string | null;
+    locked?: number | string | null;
     walletAt?: string | null;
     positions?: ApiPosition[];
     activeCopySettings?: ApiCopySetting[];
@@ -294,14 +294,9 @@ async function getDashboard(): Promise<DashboardData> {
         ? null
         : String(body.equity),
     equityAt: body.equityAt ?? null,
-    balance:
-      typeof body.balance === "number" && Number.isFinite(body.balance)
-        ? body.balance
-        : null,
-    locked:
-      typeof body.locked === "number" && Number.isFinite(body.locked)
-        ? body.locked
-        : null,
+    // sum() aggregates arrive as numeric strings; accept both.
+    balance: toFiniteNumber(body.balance),
+    locked: toFiniteNumber(body.locked),
     walletAt: body.walletAt ?? null,
     positions: body.positions ?? [],
     activeCopySettings: body.activeCopySettings ?? [],
@@ -795,6 +790,17 @@ function orderSide(orderType: number): "Long" | "Short" | null {
   return null; // 5 = cancel intent: no side of its own
 }
 
+/**
+ * Position side from either backend encoding: numeric 1 (long) / 2
+ * (short) as served by /dashboard and /leaders/:id, or "long"/"short"
+ * strings. Unknown values default to short so PnL math stays explicit.
+ */
+function isLongSide(side: unknown): boolean {
+  if (typeof side === "number") return side === 1;
+  const text = String(side).toLowerCase();
+  return text === "long" || text === "1";
+}
+
 function orderStatus(status: string): "Filled" | "Open" | "Partial" | "Cancelled" {
   const lower = String(status).toLowerCase();
   if (lower === "filled") return "Filled";
@@ -927,10 +933,15 @@ async function getFollows(): Promise<
 > {
   const body = await authedFetch<{ follows?: unknown[] }>("/leaders/follows");
   const follows = (body.follows ?? []) as Record<string, unknown>[];
-  return follows.map((f) => ({
-    leader_id: typeof f.leader_id === "string" ? f.leader_id : undefined,
-    user_id: typeof f.user_id === "string" ? f.user_id : undefined,
-  }));
+  // The backend carries the leader id in user_id (no leader_id column).
+  return follows.map((f) => {
+    const userId = typeof f.user_id === "string" ? f.user_id : undefined;
+    return {
+      leader_id:
+        typeof f.leader_id === "string" ? f.leader_id : userId,
+      user_id: userId,
+    };
+  });
 }
 
 type ApiLeaderDetail = {
@@ -938,7 +949,7 @@ type ApiLeaderDetail = {
   positions: {
     market_id: number;
     symbol: string | null;
-    side: string;
+    side: string | number;
     size_scaled: string | number;
     entry_price_scaled: string | number;
     leverage_hundredths: number;
@@ -1036,7 +1047,21 @@ async function getCopySettings(): Promise<ApiCopySettingFull[]> {
     settings?: ApiCopySettingFull[];
     copies?: ApiCopySettingFull[];
   }>("/copy");
-  return body.settings ?? body.copies ?? [];
+  // numeric columns arrive as strings from pg — coerce once at parse so
+  // readers (incl. setCopyEnabled rewrites) always see numbers.
+  return (body.settings ?? body.copies ?? []).map((s) => ({
+    ...s,
+    allocation_usd: toFiniteNumber(s.allocation_usd) ?? 0,
+    max_leverage: toFiniteNumber(s.max_leverage) ?? 3,
+    max_notional_per_trade_usd:
+      toFiniteNumber(s.max_notional_per_trade_usd) ?? 5000,
+    daily_loss_limit_usd: toFiniteNumber(s.daily_loss_limit_usd) ?? 50,
+    weekly_drawdown_limit_bps:
+      toFiniteNumber(s.weekly_drawdown_limit_bps) ?? 1000,
+    slippage_bps: toFiniteNumber(s.slippage_bps) ?? 50,
+    copy_delay_ms: toFiniteNumber(s.copy_delay_ms) ?? 1500,
+    stop_loss_bps: toFiniteNumber(s.stop_loss_bps) ?? 2000,
+  }));
 }
 
 /** Pause/resume by rewriting the stored settings with flipped enabled. */
@@ -1091,6 +1116,12 @@ function formatMoney(human: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
+}
+
+/** Numeric columns (incl. sum() aggregates) arrive as strings from pg. */
+function toFiniteNumber(value: unknown): number | null {
+  const num = typeof value === "string" ? Number(value) : value;
+  return typeof num === "number" && Number.isFinite(num) ? num : null;
 }
 
 function formatSigned(human: number): string {
@@ -1249,7 +1280,7 @@ async function loadLiveDashboard(address?: string): Promise<{
     const entry = Number(p.entry_price_scaled) / 10 ** dec.price;
     const markRaw = p.mark_price ?? p.last_price;
     const mark = markRaw === null ? NaN : Number(markRaw) / 10 ** dec.price;
-    const long = String(p.side).toLowerCase() === "long";
+    const long = isLongSide(p.side);
     const pnl =
       Number.isFinite(size) && Number.isFinite(entry) && Number.isFinite(mark)
         ? (long ? 1 : -1) * (mark - entry) * size
@@ -1352,6 +1383,7 @@ export {
   getTournaments,
   getTrades,
   importKey,
+  isLongSide,
   joinTournament,
   killSwitch,
   linkMessageText,

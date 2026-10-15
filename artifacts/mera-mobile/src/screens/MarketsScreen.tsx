@@ -27,10 +27,6 @@ import {
 } from "./homeTheme";
 import type { MarketRow, MarketsProps } from "./types";
 
-// Mock stand-in for real holdings: "My Assets" narrows to these until the
-// backend supplies per-user positions.
-const HELD_SYMBOLS = ["BTC", "ETH", "SOL"];
-
 type Scope = "mine" | "all";
 
 function formatChange(changePct: number): string {
@@ -38,7 +34,7 @@ function formatChange(changePct: number): string {
 }
 
 export function MarketsScreen(props: MarketsProps = {}): ReactElement {
-  const { markets: marketsOverride, search = "", refreshToken = 0, onSearchChange, onSelectMarket } = props;
+  const { markets: marketsOverride, heldSymbols, search = "", refreshToken = 0, onSearchChange, onSelectMarket } = props;
   const [scope, setScope] = useState<Scope>("mine");
   const [searchOpen, setSearchOpen] = useState(false);
   const [sortDesc, setSortDesc] = useState(true);
@@ -76,7 +72,10 @@ export function MarketsScreen(props: MarketsProps = {}): ReactElement {
 
   const visible = rows
     .filter((row) =>
-      scope === "mine" ? HELD_SYMBOLS.includes(row.symbol.toUpperCase()) : true,
+      // Live holdings from the dashboard; unknown (never loaded) shows all.
+      scope === "mine" && heldSymbols !== undefined
+        ? heldSymbols.includes(row.symbol.toUpperCase())
+        : true,
     )
     .filter((row) =>
       query.length === 0
