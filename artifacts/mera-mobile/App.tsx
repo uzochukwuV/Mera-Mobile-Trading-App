@@ -1028,12 +1028,19 @@ export default function App() {
         rows.map((t) => ({
           id: t.id,
           name: t.name,
+          // Backend statuses: scheduled | active | settled.
           status:
-            t.status === "Live" || t.status === "Upcoming" || t.status === "Ended"
-              ? t.status
-              : "Upcoming",
+            t.status === "active" || t.status === "Live"
+              ? "Live"
+              : t.status === "settled" || t.status === "Ended"
+                ? "Ended"
+                : "Upcoming",
           entrants: String(t.entrants ?? t.entries ?? "0"),
-          prize: t.prize ?? "—",
+          prize:
+            t.prize ??
+            (t.prize_pool_usd === null || t.prize_pool_usd === undefined
+              ? "—"
+              : `$${Number(t.prize_pool_usd).toLocaleString("en-US")}`),
           rank: t.rank ?? undefined,
         })),
       );

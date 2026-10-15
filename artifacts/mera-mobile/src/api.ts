@@ -648,6 +648,7 @@ type ApiTournament = {
   entrants?: string | number;
   entries?: string | number;
   prize?: string;
+  prize_pool_usd?: number | string | null;
   rank?: string | null;
 };
 
