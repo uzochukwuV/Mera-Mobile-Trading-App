@@ -52,6 +52,7 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
 
   const isLong = side === "long";
   const sideLabel = isLong ? "LONG" : "SHORT";
+  const baseAsset = symbol.split("-")[0] ?? symbol;
   // Live notional from size × mark; fees are quoted server-side, unknown here.
   const markNum = Number(mark.replace(/,/g, ""));
   const sizeNum = Number(size);
@@ -158,7 +159,7 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
           </View>
 
           <View style={styles.amountBlock}>
-            <Text style={styles.caption}>AMOUNT TO TRADE</Text>
+            <Text style={styles.caption}>AMOUNT TO TRADE ({baseAsset})</Text>
             <TextInput
               accessibilityLabel="Amount to trade"
               editable={!busy}
