@@ -24,8 +24,8 @@ import {
 } from "./homeTheme";
 import type { TradeFillRow, TradesProps } from "./types";
 
-type Filter = "All" | "Copy" | "Manual";
-const FILTERS: Filter[] = ["All", "Copy", "Manual"];
+type Filter = "All" | "Copy" | "Manual" | "Exchange";
+const FILTERS: Filter[] = ["All", "Copy", "Manual", "Exchange"];
 
 function StatusTag({ status }: { status: TradeFillRow["status"] }) {
   const tone =

@@ -52,6 +52,7 @@ export function TraderProfileScreen(props: TraderProfileProps = {}): ReactElemen
     pnl24h = "—",
     winRate = "—",
     sharpe = "—",
+    maxDrawdown = "—",
     followers = "0",
     following = false,
     busy = false,
@@ -154,6 +155,9 @@ export function TraderProfileScreen(props: TraderProfileProps = {}): ReactElemen
               <View style={styles.statRow}>
                 <Stat label="WIN RATE" value={winRate} />
                 <Stat label="SHARPE" value={sharpe} />
+              </View>
+              <View style={styles.statRow}>
+                <Stat label="MAX DRAWDOWN" value={maxDrawdown} />
               </View>
             </View>
 

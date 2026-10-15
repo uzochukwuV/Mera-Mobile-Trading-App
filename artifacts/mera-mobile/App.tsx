@@ -26,6 +26,7 @@ import {
   getAccountCreation,
   getAccounts,
   getCopySettings,
+  getExchangeFills,
   getFollows,
   getLeader,
   getLeaders,
@@ -33,6 +34,7 @@ import {
   getMe,
   isLongSide,
   getMyTournamentEntries,
+  getTournamentDetail,
   getTournaments,
   getTrades,
   importKey,
@@ -56,7 +58,12 @@ import {
   updateHandle,
   type LiveDashboard,
 } from "./src/api";
-import type { LeaderRow, TradeFillRow } from "./src/screens/types";
+import type {
+  CopySettingsForm,
+  LeaderRow,
+  StandingsEntry,
+  TradeFillRow,
+} from "./src/screens/types";
 import {
   createAccount,
   describeError,
@@ -71,6 +78,7 @@ import {
   AccountScreen,
   ConnectPerplScreen,
   CopyManagementScreen,
+  CopySettingsScreen,
   DashboardScreen,
   DiscoverScreen,
   ExportScreen,
@@ -83,6 +91,7 @@ import {
   TradesScreen,
   TraderProfileScreen,
   TournamentsScreen,
+  TournamentStandingsScreen,
   WithdrawScreen,
 } from "./src/screens";
 import { spacing } from "./src/theme";
@@ -99,6 +108,8 @@ type StackKey =
   | "trades"
   | "profile"
   | "copies"
+  | "editCopy"
+  | "standings"
   | "export"
   | "withdraw";
 type Tour = { tab: TabKey; stack: StackKey[] };
@@ -206,6 +217,7 @@ export default function App() {
     pnl24h: string;
     winRate: string;
     sharpe: string;
+    maxDrawdown: string;
     followers: string;
     following: boolean;
     positions: { symbol: string; side: "Long" | "Short"; size: string; mark?: string; pnl: string; pnlUp: boolean }[];
@@ -614,8 +626,12 @@ export default function App() {
     else setTradesLoading(true);
     setTradesError(null);
     try {
-      const { fills: rows, error } = await getTrades();
-      setFills(rows);
+      const [{ fills: rows, error }, exchange] = await Promise.all([
+        getTrades(),
+        // Exchange-confirmed fills need a trade key; missing key yields [].
+        getExchangeFills().catch((): TradeFillRow[] => []),
+      ]);
+      setFills([...rows, ...exchange]);
       setTradesError(error);
       setTradesLoaded(true);
       // Viewing activity clears the badge (best-effort, silent).
@@ -755,6 +771,13 @@ export default function App() {
             : "—",
         sharpe:
           typeof profile.sharpe === "number" ? profile.sharpe.toFixed(2) : "—",
+        maxDrawdown:
+          typeof profile.max_drawdown === "number"
+            ? `${(profile.max_drawdown * 100).toFixed(1)}%`
+            : typeof profile.max_drawdown === "string" &&
+                profile.max_drawdown !== ""
+              ? profile.max_drawdown
+              : "—",
         followers: Number(profile.followers_count ?? 0).toLocaleString("en-US"),
         following: follows.some(
           (f) => (f.leader_id ?? f.user_id) === id,
@@ -971,6 +994,27 @@ export default function App() {
   const [tournamentsLoading, setTournamentsLoading] = useState(false);
   const [tournamentsError, setTournamentsError] = useState<string | null>(null);
   const [joiningId, setJoiningId] = useState<string | null>(null);
+  // Tournament standings detail.
+  const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(
+    null,
+  );
+  const [standings, setStandings] = useState<{
+    name: string;
+    status: string;
+    prize: string;
+    entries: StandingsEntry[];
+  } | null>(null);
+  const [standingsFor, setStandingsFor] = useState<string | null>(null);
+  const [standingsLoading, setStandingsLoading] = useState(false);
+  const [standingsError, setStandingsError] = useState<string | null>(null);
+  // Copy-settings editor.
+  const [editingCopy, setEditingCopy] = useState<{
+    leaderId: string;
+    handle: string;
+    form: CopySettingsForm;
+  } | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
 
   const loadTournaments = useCallback(async (): Promise<void> => {
     setTournamentsLoading(true);
@@ -1014,6 +1058,110 @@ export default function App() {
       setTournamentsError(describeError(caught));
     } finally {
       setJoiningId(null);
+    }
+  }
+
+  const loadStandings = useCallback(async (id: string): Promise<void> => {
+    setStandingsLoading(true);
+    setStandingsError(null);
+    try {
+      const detail = await getTournamentDetail(id);
+      const tournament = detail.tournament;
+      const entries: StandingsEntry[] = detail.standings.map((s, index) => ({
+        rank: String(s.rank ?? index + 1),
+        handle: s.handle ?? `trader-${String(s.user_id).slice(0, 6)}`,
+        score:
+          typeof s.score === "number"
+            ? s.score.toFixed(1)
+            : (s.score ?? "—").toString(),
+        netPnl:
+          typeof s.net_pnl === "number"
+            ? formatSignedMoney(s.net_pnl).text
+            : (s.net_pnl ?? "—").toString(),
+      }));
+      const name =
+        typeof tournament.name === "string" ? tournament.name : "Tournament";
+      setStandings({
+        name,
+        status:
+          typeof tournament.status === "string" ? tournament.status : "",
+        prize:
+          typeof tournament.prize === "string" ? tournament.prize : "—",
+        entries,
+      });
+      setStandingsFor(id);
+    } catch (caught) {
+      setStandingsError(describeError(caught));
+    } finally {
+      setStandingsLoading(false);
+    }
+  }, []);
+
+  function openStandings(id: string): void {
+    setSelectedTournamentId(id);
+    setStandings(null);
+    setStandingsFor(null);
+    setStandingsError(null);
+    push("standings");
+  }
+
+  async function openEditCopy(leaderId: string): Promise<void> {
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      const settings = await getCopySettings();
+      const current = settings.find((s) => s.leader_id === leaderId);
+      if (!current) {
+        setEditError("Copy setting not found — pull to refresh.");
+        return;
+      }
+      setEditingCopy({
+        leaderId,
+        handle:
+          current.leader_handle ?? current.handle ?? `trader-${leaderId.slice(0, 6)}`,
+        form: {
+          allocation: String(current.allocation_usd ?? ""),
+          maxLeverage: String(current.max_leverage ?? 3),
+          maxNotional: String(current.max_notional_per_trade_usd ?? 5000),
+          dailyLoss: String(current.daily_loss_limit_usd ?? 50),
+          slippage: String(current.slippage_bps ?? 50),
+          stopLoss: String(current.stop_loss_bps ?? 2000),
+        },
+      });
+      push("editCopy");
+    } catch (caught) {
+      setEditError(describeError(caught));
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleSaveCopySettings(form: CopySettingsForm): Promise<void> {
+    if (!editingCopy) return;
+    const amount = Number(form.allocation);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setEditError("Enter an allocation amount in aUSD.");
+      return;
+    }
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await putCopySettings(editingCopy.leaderId, {
+        allocationUsd: amount,
+        maxLeverage: Number(form.maxLeverage) || 3,
+        maxNotionalPerTradeUsd: Number(form.maxNotional) || 5000,
+        dailyLossLimitUsd: Number(form.dailyLoss) || 50,
+        slippageBps: Number(form.slippage) || 50,
+        stopLossBps: Number(form.stopLoss) || 2000,
+      });
+      await loadCopies(true);
+      await loadDashboard(currentAddress(), true);
+      pop();
+      setEditingCopy(null);
+    } catch (caught) {
+      setEditError(describeError(caught));
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -1212,6 +1360,18 @@ export default function App() {
       void loadCopies(false);
     }
   }, [top, copiesLoaded, copiesLoading, loadCopies]);
+
+  // Standings load on entering the detail stack, per tournament.
+  useEffect(() => {
+    if (
+      top === "standings" &&
+      selectedTournamentId &&
+      standingsFor !== selectedTournamentId &&
+      !standingsLoading
+    ) {
+      void loadStandings(selectedTournamentId);
+    }
+  }, [top, selectedTournamentId, standingsFor, standingsLoading, loadStandings]);
 
   // Realtime → debounced silent reloads (appflow §3 subscription map).
   // Loaders only show spinners when no data exists yet, so ticks refresh
@@ -1441,6 +1601,7 @@ export default function App() {
               pnl24h={profile?.pnl24h}
               winRate={profile?.winRate}
               sharpe={profile?.sharpe}
+              maxDrawdown={profile?.maxDrawdown}
               followers={profile?.followers}
               following={profile?.following ?? false}
               busy={copyBusy}
@@ -1473,7 +1634,38 @@ export default function App() {
               onPause={(id) => void handleCopyPause(id)}
               onResume={(id) => void handleCopyResume(id)}
               onStop={(id) => void handleCopyStop(id)}
+              onEdit={(id) => void openEditCopy(id)}
               onKillSwitch={() => void handleKillSwitch()}
+            />
+          ) : top === "editCopy" ? (
+            <CopySettingsScreen
+              handle={editingCopy?.handle}
+              initial={editingCopy?.form}
+              saving={editSaving}
+              saveError={editError}
+              onSave={(form) => void handleSaveCopySettings(form)}
+              onBack={pop}
+            />
+          ) : top === "standings" ? (
+            <TournamentStandingsScreen
+              name={standings?.name}
+              status={standings?.status}
+              prize={standings?.prize}
+              entries={standings?.entries ?? []}
+              myRank={
+                selectedTournamentId
+                  ? (tournaments.find((t) => t.id === selectedTournamentId)?.rank ??
+                    null)
+                  : null
+              }
+              loading={standingsLoading && standings === null}
+              loadError={standings === null ? standingsError : null}
+              onBack={pop}
+              onRetry={() =>
+                selectedTournamentId
+                  ? void loadStandings(selectedTournamentId)
+                  : undefined
+              }
             />
           ) : top === "export" ? (
             <ExportScreen
@@ -1519,6 +1711,7 @@ export default function App() {
               loading={tournamentsLoading && tournaments.length === 0}
               loadError={tournaments.length === 0 ? tournamentsError : null}
               onJoin={(id) => void handleJoinTournament(id)}
+              onSelect={(id) => openStandings(id)}
               onRetry={() => void loadTournaments()}
             />
           ) : activeTour.tab === "account" ? (

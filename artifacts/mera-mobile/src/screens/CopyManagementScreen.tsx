@@ -1,4 +1,4 @@
-import type { ReactElement } from "react";
+import { useEffect, useState, type ReactElement } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { ApiError, getRiskEvents, orderTimeLabel, type RiskEvent } from "../api";
 import { tintForName } from "./coinMeta";
 import {
   BG,
@@ -81,10 +82,32 @@ export function CopyManagementScreen(props: CopyManagementProps = {}): ReactElem
     onPause,
     onResume,
     onStop,
+    onEdit,
     onKillSwitch,
     onBack,
   } = props;
   const isEmpty = copies.length === 0;
+  const [events, setEvents] = useState<RiskEvent[]>([]);
+  const [eventsError, setEventsError] = useState<string | null>(null);
+
+  // Guardrail history: why a copy paused or an order was skipped.
+  useEffect(() => {
+    let stale = false;
+    getRiskEvents(20)
+      .then((rows) => {
+        if (!stale) setEvents(rows);
+      })
+      .catch((caught) => {
+        if (!stale) {
+          setEventsError(
+            caught instanceof ApiError ? caught.message : "Couldn't load guardrail activity",
+          );
+        }
+      });
+    return () => {
+      stale = true;
+    };
+  }, []);
 
   return (
     <View style={styles.screen}>
@@ -173,11 +196,52 @@ export function CopyManagementScreen(props: CopyManagementProps = {}): ReactElem
                         <MiniButton title="Resume" onPress={() => onResume?.(copy.leaderId)} />
                       )}
                       <MiniButton title="Stop" danger onPress={() => onStop?.(copy.leaderId)} />
+                      <MiniButton title="Edit" onPress={() => onEdit?.(copy.leaderId)} />
                     </View>
                   </View>
                 );
               })
             )}
+
+            <View style={styles.card}>
+              <Text style={styles.dangerTitle}>Guardrail activity</Text>
+              {eventsError ? (
+                <Text style={styles.emptyBody}>{eventsError}</Text>
+              ) : events.length === 0 ? (
+                <Text style={styles.emptyBody}>
+                  No guardrail events yet — pauses and skipped orders show up here.
+                </Text>
+              ) : (
+                events.map((event) => {
+                  const reason =
+                    typeof event.detail?.reason === "string"
+                      ? event.detail.reason
+                      : typeof event.detail?.message === "string"
+                        ? event.detail.message
+                        : null;
+                  return (
+                    <View key={event.id}>
+                      <View style={styles.hairline} />
+                      <View style={styles.eventRow}>
+                        <View style={styles.rowMain}>
+                          <Text style={styles.eventType}>
+                            {event.type.replace(/_/g, " ")}
+                          </Text>
+                          {reason ? (
+                            <Text style={styles.eventDetail} numberOfLines={2}>
+                              {reason}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <Text style={styles.eventTime}>
+                          {orderTimeLabel(event.created_at)}
+                        </Text>
+                      </View>
+                    </View>
+                  );
+                })
+              )}
+            </View>
 
             <View style={styles.card}>
               <Text style={styles.dangerTitle}>Stop everything</Text>
@@ -275,6 +339,22 @@ const styles = StyleSheet.create({
   retryLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
   rowMain: { flex: 1, gap: 2 },
   rowTop: { alignItems: "center", flexDirection: "row", gap: 12 },
+  hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
+  eventRow: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    gap: 10,
+    paddingVertical: 8,
+  },
+  eventType: {
+    color: INK,
+    fontSize: 13,
+    fontWeight: "600",
+    lineHeight: 18,
+    textTransform: "capitalize",
+  },
+  eventDetail: { color: MUTED, fontSize: 12, lineHeight: 16 },
+  eventTime: { color: MUTED, fontSize: 12, lineHeight: 16 },
   screen: { backgroundColor: BG, flex: 1 },
   scroll: { gap: 14, padding: 20, paddingBottom: 32 },
   tag: {

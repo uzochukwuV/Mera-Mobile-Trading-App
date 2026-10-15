@@ -672,6 +672,121 @@ async function joinTournament(id: string): Promise<void> {
   });
 }
 
+type TournamentStanding = {
+  user_id: string;
+  handle: string | null;
+  score: number | string | null;
+  rank: number | string | null;
+  net_pnl: number | string | null;
+  max_drawdown: number | string | null;
+};
+
+type TournamentDetail = {
+  tournament: ApiTournament & Record<string, unknown>;
+  standings: TournamentStanding[];
+};
+
+/** Tournament detail + score-ordered standings for the standings view. */
+async function getTournamentDetail(id: string): Promise<TournamentDetail> {
+  const body = await authedFetch<{
+    tournament: TournamentDetail["tournament"];
+    standings?: TournamentStanding[];
+  }>(`/tournaments/${encodeURIComponent(id)}`);
+  return { tournament: body.tournament, standings: body.standings ?? [] };
+}
+
+type RiskEvent = {
+  id: number;
+  type: string;
+  leader_id: string | null;
+  detail: Record<string, unknown>;
+  created_at: string;
+};
+
+/** Guardrail history ("why didn't my copy fire?") for the copy manager. */
+async function getRiskEvents(limit = 50): Promise<RiskEvent[]> {
+  const body = await authedFetch<{ events?: RiskEvent[] }>(
+    `/copy/risk-events?limit=${limit}`,
+  );
+  return body.events ?? [];
+}
+
+type PerplFill = {
+  mkt: number;
+  t: number;
+  p?: number | string;
+  s: number | string;
+  at: { t: number } | string | number;
+};
+
+/** Exchange-confirmed fills (Perpl passthrough) for the Trades screen. */
+async function getExchangeFills(): Promise<
+  import("./screens/types").TradeFillRow[]
+> {
+  let raw: PerplFill[] = [];
+  try {
+    const [body, markets] = await Promise.all([
+      authedFetch<{ d?: PerplFill[] } | PerplFill[]>("/trading/fills?count=50"),
+      getMarketsCached(),
+    ]);
+    raw = Array.isArray(body) ? body : (body.d ?? []);
+    const meta = new Map(
+      markets.map((m) => [
+        m.market_id,
+        { symbol: m.symbol, price: m.price_decimals, size: m.size_decimals },
+      ]),
+    );
+    return raw.flatMap((f, index) => {
+      const side = orderSide(f.t);
+      if (side === null) return [];
+      const info = meta.get(f.mkt) ?? {
+        symbol: `Market ${f.mkt}`,
+        price: 2,
+        size: 0,
+      };
+      const size = Number(f.s) / 10 ** info.size;
+      const price = Number(f.p ?? NaN) / 10 ** info.price;
+      const atSec =
+        typeof f.at === "number"
+          ? f.at
+          : typeof f.at === "string"
+            ? Date.parse(f.at) / 1000
+            : f.at.t;
+      const atMs = atSec < 1e12 ? atSec * 1000 : atSec;
+      return [
+        {
+          id: `exchange-${index}`,
+          market: info.symbol,
+          side,
+          size: Number.isFinite(size)
+            ? size.toLocaleString("en-US", { maximumFractionDigits: 6 })
+            : "—",
+          price:
+            Number.isFinite(price) && price > 0
+              ? price.toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 5,
+                })
+              : "Market",
+          time: orderTimeLabel(new Date(atMs).toISOString()),
+          status: "Filled" as const,
+          source: "Exchange" as const,
+        },
+      ];
+    });
+  } catch (caught) {
+    // No trade key (or Perpl unreachable): exchange fills are unavailable,
+    // copy/manual intents still render.
+    if (
+      caught instanceof ApiError &&
+      (caught.code === "no_trade_key" || caught.code === "no_account")
+    ) {
+      return [];
+    }
+    throw caught;
+  }
+}
+
 // --- Key revocation + own trader profile (S14) ---
 
 async function revokeAccount(id: string): Promise<void> {
@@ -1373,6 +1488,7 @@ export {
   getCopyOrders,
   getCopySettings,
   getDashboard,
+  getExchangeFills,
   getFollows,
   getLeader,
   getLeaders,
@@ -1380,6 +1496,8 @@ export {
   getMarketsCached,
   getMe,
   getMyTournamentEntries,
+  getRiskEvents,
+  getTournamentDetail,
   getTournaments,
   getTrades,
   importKey,
@@ -1405,4 +1523,4 @@ export {
   unfollowLeader,
   updateHandle,
 };
-export type { AccountCreationMeta, ApiCandle, ApiMarket, ApiPosition, DashboardData, LiveDashboard, MeUser, PerplAccount };
+export type { AccountCreationMeta, ApiCandle, ApiCopySettingFull, ApiMarket, ApiPosition, DashboardData, LiveDashboard, MeUser, PerplAccount, RiskEvent, TournamentDetail, TournamentStanding };

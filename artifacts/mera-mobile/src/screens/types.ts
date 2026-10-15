@@ -166,7 +166,7 @@ export type TradeFillRow = {
   price: string;
   time: string;
   status: "Filled" | "Open" | "Partial" | "Cancelled";
-  source: "Copy" | "Manual";
+  source: "Copy" | "Manual" | "Exchange";
 };
 
 export type TradesProps = {
@@ -209,6 +209,7 @@ export type TraderProfileProps = {
   pnl24h?: string;
   winRate?: string;
   sharpe?: string;
+  maxDrawdown?: string;
   followers?: string;
   following?: boolean;
   busy?: boolean;
@@ -233,6 +234,24 @@ export type CopySettingRow = {
   status: "Active" | "Paused";
 };
 
+export type CopySettingsForm = {
+  allocation: string;
+  maxLeverage: string;
+  maxNotional: string;
+  dailyLoss: string;
+  slippage: string;
+  stopLoss: string;
+};
+
+export type CopySettingsProps = {
+  handle?: string;
+  initial?: CopySettingsForm;
+  saving?: boolean;
+  saveError?: string | null;
+  onSave?: (input: CopySettingsForm) => void;
+  onBack?: () => void;
+};
+
 export type CopyManagementProps = {
   copies?: CopySettingRow[];
   loading?: boolean;
@@ -242,6 +261,7 @@ export type CopyManagementProps = {
   onPause?: (leaderId: string) => void;
   onResume?: (leaderId: string) => void;
   onStop?: (leaderId: string) => void;
+  onEdit?: (leaderId: string) => void;
   onKillSwitch?: () => void;
   onBack?: () => void;
 };
@@ -263,6 +283,25 @@ export type TournamentsProps = {
   loadError?: string | null;
   onJoin?: (id: string) => void;
   onSelect?: (id: string) => void;
+  onRetry?: () => void;
+};
+
+export type StandingsEntry = {
+  rank: string;
+  handle: string;
+  score: string;
+  netPnl: string;
+};
+
+export type TournamentStandingsProps = {
+  name?: string;
+  status?: string;
+  prize?: string;
+  entries?: StandingsEntry[];
+  myRank?: string | null;
+  loading?: boolean;
+  loadError?: string | null;
+  onBack?: () => void;
   onRetry?: () => void;
 };
 
