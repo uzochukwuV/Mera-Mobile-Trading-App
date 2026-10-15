@@ -56,6 +56,7 @@ import {
   signPopDigest,
   submitOrder,
   toMarketRow,
+  transferAusd,
   unfollowLeader,
   updateHandle,
   type LiveDashboard,
@@ -991,6 +992,17 @@ export default function App() {
     push("ticket");
   }
 
+  // aUSD transfer (Home Send sheet): wallet-signed ERC-20 transfer.
+  async function handleSendAusd(to: string, amount: number): Promise<string> {
+    const current = accountRef.current;
+    if (current?.status !== "unlocked") {
+      throw new Error("Unlock your wallet to send.");
+    }
+    const hash = await transferAusd(current.wallet.session, to, amount);
+    void loadDashboard(currentAddress(), true);
+    return hash;
+  }
+
   // Tournaments (S13).
   const [tournaments, setTournaments] = useState<
     { id: string; name: string; status: "Live" | "Upcoming" | "Ended"; entrants: string; prize: string; rank?: string }[]
@@ -1778,6 +1790,12 @@ export default function App() {
             <DashboardScreen
               equity={dash?.equity ?? "0.00"}
               available={dash?.available}
+              walletAddress={
+                account.status === "unlocked"
+                  ? account.wallet.address
+                  : undefined
+              }
+              onSendAusd={(to, amount) => handleSendAusd(to, amount)}
               lastUpdatedSecondsAgo={dash?.lastUpdatedSecondsAgo ?? 0}
               unread={dash?.unread ?? 0}
               realizedPnlToday={dash?.realizedPnlToday ?? "+0.00"}

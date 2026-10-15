@@ -1,0 +1,1 @@
+{"version":3,"file":"webcrypto.d.ts","sourceRoot":"","sources":["../src/webcrypto.ts"],"names":[],"mappings":"AAEA,iBAAS,WAAW,CAAC,MAAM,EAAE,MAAM,GAAG,UAAU,CAAC,WAAW,CAAC,CAa5D;AAED,iBAAS,eAAe,IAAI,YAAY,CAQvC;AAED,OAAO,EAAE,eAAe,EAAE,WAAW,EAAE,CAAC"}

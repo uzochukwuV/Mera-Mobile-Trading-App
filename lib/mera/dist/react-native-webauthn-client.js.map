@@ -1,0 +1,1 @@
+{"version":3,"file":"react-native-webauthn-client.js","sourceRoot":"","sources":["../src/react-native-webauthn-client.ts"],"names":[],"mappings":"AAAA;;;;GAIG;AAEH,OAAO,EAAE,OAAO,IAAI,WAAW,EAAE,MAAM,sBAAsB,CAAC;AAC9D,OAAO,EAAE,+BAA+B,EAAE,MAAM,4CAA4C,CAAC;AAG7F,MAAM,yBAAyB,GAC7B,+BAA+B,CAAC,WAAW,CAAC,CAAC;AAE/C,OAAO,EAAE,yBAAyB,EAAE,CAAC"}

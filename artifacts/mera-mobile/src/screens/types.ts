@@ -87,6 +87,8 @@ export type DashboardProps = {
   unread?: number;
   available?: string;
   locked?: string;
+  walletAddress?: string;
+  onSendAusd?: (to: string, amount: number) => Promise<string>;
   realizedPnlToday?: string;
   realizedPnlUp?: boolean;
   riskNotice?: string | null;

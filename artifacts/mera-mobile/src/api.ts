@@ -863,6 +863,76 @@ async function setOrderForwarding(
   });
 }
 
+const ERC20_TRANSFER_ABI = [
+  {
+    name: "transfer",
+    type: "function",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "to", type: "address" },
+      { name: "amount", type: "uint256" },
+    ],
+    outputs: [{ type: "bool" }],
+  },
+] as const;
+
+/**
+ * Sends aUSD to another address, wallet-signed via the mera session.
+ * @returns The transaction hash.
+ * @throws ApiError with code `invalid_address` / `invalid_amount` on bad input.
+ */
+async function transferAusd(
+  session: import("@category-labs/mera").Secp256k1SigningSession,
+  to: string,
+  amount: number,
+): Promise<string> {
+  const { toViemAccount } = await import("@category-labs/mera/viem");
+  const { createWalletClient, http, isAddress, parseUnits } =
+    await import("viem");
+  if (!isAddress(to)) {
+    throw new ApiError("invalid_address", "That is not a valid address.");
+  }
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new ApiError("invalid_amount", "Enter an amount greater than zero.");
+  }
+  let tokenAddress = AUSD_ADDRESS;
+  let decimals = AUSD_DECIMALS;
+  try {
+    const meta = await getAccountCreation();
+    if (/^0x[0-9a-fA-F]{40}$/.test(meta.collateralToken.address)) {
+      tokenAddress = meta.collateralToken.address;
+    }
+    if (
+      Number.isInteger(meta.collateralToken.decimals) &&
+      meta.collateralToken.decimals >= 0 &&
+      meta.collateralToken.decimals <= 18
+    ) {
+      decimals = meta.collateralToken.decimals;
+    }
+  } catch {
+    // Fall back to the baked-in testnet values.
+  }
+  const account = toViemAccount(session) as unknown as import("viem").LocalAccount;
+  const walletClient = createWalletClient({
+    account,
+    chain: {
+      id: 10143,
+      name: "Monad Testnet",
+      nativeCurrency: { decimals: 18, name: "MON", symbol: "MON" },
+      rpcUrls: { default: { http: [MONAD_TESTNET_RPC] } },
+    },
+    transport: http(MONAD_TESTNET_RPC, { timeout: REQUEST_TIMEOUT_MS }),
+  });
+  return walletClient.writeContract({
+    address: tokenAddress as `0x${string}`,
+    abi: ERC20_TRANSFER_ABI,
+    functionName: "transfer",
+    args: [to as `0x${string}`, parseUnits(String(amount), decimals)],
+    account,
+    chain: walletClient.chain,
+  });
+}
+
 // --- Copy + manual order reads (appflow S9) and kill switch (S5/S12) ---
 
 type ApiOrder = {
@@ -1521,6 +1591,7 @@ export {
   signPopDigest,
   submitOrder,
   toMarketRow,
+  transferAusd,
   unfollowLeader,
   updateHandle,
 };

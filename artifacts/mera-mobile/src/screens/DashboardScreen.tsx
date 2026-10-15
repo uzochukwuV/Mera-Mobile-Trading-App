@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -35,6 +36,7 @@ import {
   UP_SOFT,
 } from "./homeTheme";
 import { PillButton } from "./ui";
+import { ApiError } from "../api";
 import type {
   ActivityRow,
   CopyRow,
@@ -97,6 +99,8 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
   const {
     equity = "0.00",
     available,
+    walletAddress,
+    onSendAusd,
     lastUpdatedSecondsAgo = 0,
     unread = 0,
     realizedPnlToday = "+0.00",
@@ -119,6 +123,14 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
   } = props;
 
   const [killOpen, setKillOpen] = useState(false);
+  const [sendOpen, setSendOpen] = useState(false);
+  const [sendTo, setSendTo] = useState("");
+  const [sendAmount, setSendAmount] = useState("");
+  const [sendBusy, setSendBusy] = useState(false);
+  const [sendError, setSendError] = useState<string | null>(null);
+  const [sendHash, setSendHash] = useState<string | null>(null);
+  const [receiveOpen, setReceiveOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const isEmpty =
     positions.length === 0 && copies.length === 0 && activity.length === 0;
   const updatedLabel =
@@ -195,6 +207,33 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
           <QuickAction icon="stats-chart" label="Markets" onPress={() => onMarkets?.()} />
           <QuickAction icon="people" label="Copy" onPress={() => onCopyTrader?.()} />
           <QuickAction icon="time" label="Activity" onPress={() => onSeeActivity?.()} />
+        </View>
+
+        <View style={styles.transferRow}>
+          <View style={styles.transferHalf}>
+            <PillButton
+              label="Send"
+              icon={<Ionicons name="arrow-up" size={18} color={PAPER} />}
+              onPress={() => {
+                setSendTo("");
+                setSendAmount("");
+                setSendError(null);
+                setSendHash(null);
+                setSendOpen(true);
+              }}
+            />
+          </View>
+          <View style={styles.transferHalf}>
+            <PillButton
+              label="Receive"
+              variant="secondary"
+              icon={<Ionicons name="arrow-down" size={18} color={INK} />}
+              onPress={() => {
+                setCopied(false);
+                setReceiveOpen(true);
+              }}
+            />
+          </View>
         </View>
 
         {riskNotice ? (
@@ -359,6 +398,137 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
 
       <Modal
         animationType="slide"
+        onRequestClose={() => setSendOpen(false)}
+        transparent
+        visible={sendOpen}
+      >
+        <Pressable style={styles.backdrop} onPress={() => setSendOpen(false)} />
+        <View style={styles.sheetModal}>
+          <View style={styles.handle} />
+          <Text style={styles.sheetTitle}>Send aUSD</Text>
+          {available !== undefined ? (
+            <Text style={styles.sheetBody}>Available: {available} aUSD</Text>
+          ) : null}
+          {sendHash ? (
+            <>
+              <View style={styles.successCard}>
+                <Ionicons name="checkmark-circle" size={28} color={UP} />
+                <Text style={styles.successTitle}>Sent</Text>
+                <Text style={styles.hash} numberOfLines={1}>
+                  {sendHash}
+                </Text>
+              </View>
+              <PillButton label="Done" onPress={() => setSendOpen(false)} />
+            </>
+          ) : (
+            <>
+              <Text style={styles.fieldLabel}>To address</Text>
+              <TextInput
+                accessibilityLabel="Recipient address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                editable={!sendBusy}
+                onChangeText={(value) => {
+                  setSendTo(value);
+                  setSendError(null);
+                }}
+                placeholder="0x…"
+                placeholderTextColor={MUTED}
+                style={styles.input}
+                value={sendTo}
+              />
+              <Text style={styles.fieldLabel}>Amount (aUSD)</Text>
+              <TextInput
+                accessibilityLabel="Amount in aUSD"
+                editable={!sendBusy}
+                keyboardType="decimal-pad"
+                onChangeText={(value) => {
+                  setSendAmount(value);
+                  setSendError(null);
+                }}
+                placeholder="0.00"
+                placeholderTextColor={MUTED}
+                style={styles.input}
+                value={sendAmount}
+              />
+              {sendError ? (
+                <Text style={styles.sendError}>{sendError}</Text>
+              ) : null}
+              <PillButton
+                label={sendBusy ? "Sending…" : "Send"}
+                busy={sendBusy}
+                onPress={() => {
+                  const amount = Number(sendAmount);
+                  if (!onSendAusd) {
+                    setSendError("Sign in to send.");
+                    return;
+                  }
+                  setSendBusy(true);
+                  setSendError(null);
+                  onSendAusd(sendTo.trim(), amount)
+                    .then((hash) => setSendHash(hash))
+                    .catch((caught) => {
+                      setSendError(
+                        caught instanceof ApiError
+                          ? caught.message
+                          : caught instanceof Error
+                            ? caught.message
+                            : "Couldn't send.",
+                      );
+                    })
+                    .finally(() => setSendBusy(false));
+                }}
+              />
+              <PillButton
+                label="Cancel"
+                variant="ghost"
+                onPress={() => setSendOpen(false)}
+              />
+            </>
+          )}
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setReceiveOpen(false)}
+        transparent
+        visible={receiveOpen}
+      >
+        <Pressable style={styles.backdrop} onPress={() => setReceiveOpen(false)} />
+        <View style={styles.sheetModal}>
+          <View style={styles.handle} />
+          <Text style={styles.sheetTitle}>Receive aUSD</Text>
+          <Text style={styles.sheetBody}>
+            Share this address. Monad Testnet only.
+          </Text>
+          <View style={styles.addressBox}>
+            <Text style={styles.addressText} selectable>
+              {walletAddress ?? "Sign in to see your address."}
+            </Text>
+          </View>
+          {walletAddress ? (
+            <PillButton
+              label={copied ? "Copied ✓" : "Copy address"}
+              variant={copied ? "secondary" : "primary"}
+              onPress={() => {
+                import("expo-clipboard")
+                  .then(({ setStringAsync }) => setStringAsync(walletAddress))
+                  .then(() => setCopied(true))
+                  .catch(() => undefined);
+              }}
+            />
+          ) : null}
+          <PillButton
+            label="Done"
+            variant="ghost"
+            onPress={() => setReceiveOpen(false)}
+          />
+        </View>
+      </Modal>
+
+      <Modal
+        animationType="slide"
         onRequestClose={() => setKillOpen(false)}
         transparent
         visible={killOpen}
@@ -451,6 +621,29 @@ const styles = StyleSheet.create({
   heroAvailable: { color: SECONDARY, fontSize: 13, lineHeight: 19 },
   heroUpdated: { color: MUTED, fontSize: 11, lineHeight: 14 },
   actions: { flexDirection: "row", gap: 8 },
+  transferRow: { flexDirection: "row", gap: 8 },
+  transferHalf: { flex: 1 },
+  fieldLabel: { color: INK, fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  input: {
+    backgroundColor: PAPER,
+    borderColor: BORDER,
+    borderRadius: RADIUS.input,
+    borderWidth: 1,
+    color: INK,
+    fontSize: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  sendError: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  successCard: { alignItems: "center", gap: 6, paddingVertical: 12 },
+  successTitle: { color: INK, fontSize: 18, fontWeight: "700", lineHeight: 24 },
+  hash: { color: MUTED, fontFamily: "Menlo", fontSize: 12, lineHeight: 16 },
+  addressBox: {
+    backgroundColor: CARD_SOFT,
+    borderRadius: RADIUS.input,
+    padding: 14,
+  },
+  addressText: { color: INK, fontFamily: "Menlo", fontSize: 13, lineHeight: 20 },
   action: {
     alignItems: "center",
     backgroundColor: CARD_SOFT,
