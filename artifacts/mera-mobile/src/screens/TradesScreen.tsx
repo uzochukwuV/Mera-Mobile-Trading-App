@@ -11,16 +11,22 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { coinColor } from "./coinMeta";
 import {
+  AMBER,
+  AMBER_SOFT,
   BG,
   BORDER,
   CARD,
   DOWN,
+  DOWN_SOFT,
   INK,
   MUTED,
+  PAPER,
+  RADIUS,
   SECONDARY,
   SHEET,
   TEAL,
   UP,
+  UP_SOFT,
 } from "./homeTheme";
 import type { TradeFillRow, TradesProps } from "./types";
 
@@ -30,12 +36,12 @@ const FILTERS: Filter[] = ["All", "Copy", "Manual", "Exchange"];
 function StatusTag({ status }: { status: TradeFillRow["status"] }) {
   const tone =
     status === "Filled"
-      ? { bg: "rgba(52, 211, 153, 0.14)", fg: UP }
+      ? { bg: UP_SOFT, fg: UP }
       : status === "Partial"
-        ? { bg: "rgba(251, 191, 36, 0.14)", fg: "#FBBF24" }
+        ? { bg: AMBER_SOFT, fg: AMBER }
         : status === "Open"
           ? { bg: CARD, fg: SECONDARY }
-          : { bg: "rgba(248, 113, 113, 0.14)", fg: DOWN };
+          : { bg: DOWN_SOFT, fg: DOWN };
   return (
     <View style={[styles.tag, { backgroundColor: tone.bg }]}>
       <Text style={[styles.tagLabel, { color: tone.fg }]}>{status}</Text>
@@ -250,22 +256,22 @@ const styles = StyleSheet.create({
   backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
   badge: {
     alignItems: "center",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     height: 44,
     justifyContent: "center",
     width: 44,
   },
-  badgeText: { color: "#FFFFFF", fontSize: 17, fontWeight: "800" },
+  badgeText: { color: PAPER, fontSize: 17, fontWeight: "800" },
   caption: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 1, lineHeight: 14 },
   chip: {
     alignItems: "center",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     justifyContent: "center",
     paddingHorizontal: 16,
     paddingVertical: 10,
   },
   chipActive: { backgroundColor: INK },
-  chipActiveLabel: { color: "#FFFFFF", fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  chipActiveLabel: { color: PAPER, fontSize: 13, fontWeight: "700", lineHeight: 18 },
   chipIdle: { backgroundColor: CARD },
   chipIdleLabel: { color: SECONDARY, fontSize: 13, fontWeight: "500", lineHeight: 18 },
   chips: { flexDirection: "row", gap: 8 },
@@ -277,7 +283,7 @@ const styles = StyleSheet.create({
   list: {
     backgroundColor: SHEET,
     borderColor: BORDER,
-    borderRadius: 20,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 6,
@@ -294,7 +300,7 @@ const styles = StyleSheet.create({
   retry: {
     alignItems: "center",
     backgroundColor: CARD,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     marginTop: 8,
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -315,23 +321,23 @@ const styles = StyleSheet.create({
   section: { gap: 8 },
   sectionCount: { color: MUTED, fontSize: 12, fontWeight: "500", lineHeight: 15 },
   sectionHeader: { alignItems: "baseline", flexDirection: "row", gap: 8 },
-  sectionTitle: { color: INK, fontSize: 16, fontWeight: "700", lineHeight: 22 },
+  sectionTitle: { color: INK, fontSize: 18, fontWeight: "700", lineHeight: 24 },
   summary: {
     backgroundColor: CARD,
     borderColor: BORDER,
-    borderRadius: 20,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
     gap: 4,
     padding: 16,
   },
   tag: {
     alignSelf: "flex-start",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   tagLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  title: { color: INK, fontSize: 24, fontWeight: "800", letterSpacing: -0.4, lineHeight: 32 },
+  title: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
   up: { color: UP },
 });
 

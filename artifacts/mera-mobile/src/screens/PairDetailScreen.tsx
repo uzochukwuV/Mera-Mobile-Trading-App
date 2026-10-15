@@ -17,11 +17,16 @@ import {
   CARD,
   CARD_SOFT,
   DOWN,
+  DOWN_SOFT,
   INK,
   MUTED,
+  PAPER,
+  RADIUS,
   SECONDARY,
+  SHADOW_SOFT,
   TEAL,
   UP,
+  UP_SOFT,
 } from "./homeTheme";
 import {
   getCandles,
@@ -342,7 +347,7 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
                 <View
                   style={[
                     styles.liveDot,
-                    { backgroundColor: active ? "#FFFFFF" : UP },
+                    { backgroundColor: active ? PAPER : UP },
                   ]}
                 />
               ) : null}
@@ -421,25 +426,17 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
   );
 }
 
-const cardElevation = {
-  shadowColor: "#0F172A",
-  shadowOffset: { width: 0, height: 8 },
-  shadowOpacity: 0.07,
-  shadowRadius: 18,
-  elevation: 3,
-} as const;
-
 const styles = StyleSheet.create({
   back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
   backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
   card: {
     backgroundColor: CARD,
     borderColor: BORDER,
-    borderRadius: 20,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
     gap: 10,
     padding: 16,
-    ...cardElevation,
+    ...SHADOW_SOFT,
   },
   cell: { flexBasis: "46%", flexGrow: 1, gap: 2, paddingVertical: 8 },
   cellLabel: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 0.6, lineHeight: 14, textTransform: "uppercase" },
@@ -465,33 +462,33 @@ const styles = StyleSheet.create({
   chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   coin: {
     alignItems: "center",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     height: 42,
     justifyContent: "center",
     width: 42,
   },
-  coinText: { color: "#FFFFFF", fontSize: 17, fontWeight: "800" },
+  coinText: { color: PAPER, fontSize: 17, fontWeight: "800" },
   coinLarge: {
     alignItems: "center",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     height: 52,
     justifyContent: "center",
     width: 52,
   },
-  coinLargeText: { color: "#FFFFFF", fontSize: 21, fontWeight: "800" },
+  coinLargeText: { color: PAPER, fontSize: 21, fontWeight: "800" },
   copyLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
   copyWrap: { alignItems: "center", paddingVertical: 6 },
   directionBlock: {
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: RADIUS.pill,
     flex: 1,
     justifyContent: "center",
     minHeight: 56,
   },
   directionLabel: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "700",
+    color: PAPER,
+    fontSize: 16,
+    fontWeight: "600",
     lineHeight: 20,
   },
   directionRow: { flexDirection: "row", gap: 10 },
@@ -500,7 +497,7 @@ const styles = StyleSheet.create({
   emptyWrap: {
     alignItems: "center",
     backgroundColor: CARD_SOFT,
-    borderRadius: 14,
+    borderRadius: RADIUS.card,
     padding: 14,
   },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
@@ -509,31 +506,31 @@ const styles = StyleSheet.create({
   indChip: {
     backgroundColor: CARD,
     borderColor: BORDER,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
   indLabel: { color: SECONDARY, fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  liveDot: { borderRadius: 9999, height: 6, width: 6 },
+  liveDot: { borderRadius: RADIUS.pill, height: 6, width: 6 },
   longBlock: { backgroundColor: UP },
   mark: {
     color: INK,
-    fontSize: 30,
+    fontSize: 34,
     fontWeight: "800",
     fontVariant: ["tabular-nums"],
     letterSpacing: -0.5,
-    lineHeight: 36,
+    lineHeight: 41,
   },
   pill: {
     alignSelf: "flex-start",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: 10,
     paddingVertical: 4,
   },
   pillLabel: { fontSize: 12, fontWeight: "700", lineHeight: 15 },
-  pillLong: { backgroundColor: "rgba(23, 138, 76, 0.12)" },
-  pillShort: { backgroundColor: "rgba(217, 45, 32, 0.12)" },
+  pillLong: { backgroundColor: UP_SOFT },
+  pillShort: { backgroundColor: DOWN_SOFT },
   pnl: {
     fontSize: 14,
     fontWeight: "700",
@@ -556,17 +553,17 @@ const styles = StyleSheet.create({
   scroll: { gap: 14, padding: 20, paddingBottom: 32 },
   segmented: {
     backgroundColor: CARD_SOFT,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     flexDirection: "row",
     padding: 4,
   },
   segment: {
     alignItems: "center",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     flex: 1,
     paddingVertical: 8,
   },
-  segmentActive: { backgroundColor: CARD, ...cardElevation },
+  segmentActive: { backgroundColor: CARD },
   segmentLabel: { color: MUTED, fontSize: 13, fontWeight: "600", lineHeight: 18 },
   segmentLabelActive: { color: INK, fontSize: 13, fontWeight: "700", lineHeight: 18 },
   shortBlock: { backgroundColor: DOWN },
@@ -574,7 +571,7 @@ const styles = StyleSheet.create({
   tfActive: { backgroundColor: INK },
   tfChip: {
     alignItems: "center",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     flexDirection: "row",
     gap: 6,
     paddingHorizontal: 12,
@@ -582,7 +579,7 @@ const styles = StyleSheet.create({
   },
   tfIdle: { backgroundColor: CARD, borderColor: BORDER, borderWidth: 1 },
   tfLabel: { color: SECONDARY, fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  tfLabelActive: { color: "#FFFFFF" },
+  tfLabelActive: { color: PAPER },
   up: { color: UP },
 });
 

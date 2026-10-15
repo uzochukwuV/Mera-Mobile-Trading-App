@@ -10,24 +10,29 @@ import {
 import { TopFilterBar } from "./TabChrome";
 import {
   AMBER,
+  AMBER_SOFT,
   BG,
   BORDER,
   CARD,
   DOWN,
+  DOWN_SOFT,
   INK,
   MUTED,
+  PAPER,
+  RADIUS,
   SECONDARY,
   SHEET,
   UP,
+  UP_SOFT,
 } from "./homeTheme";
 import type { TournamentRow, TournamentsProps } from "./types";
 
 function StatusTag({ status }: { status: TournamentRow["status"] }) {
   const tone =
     status === "Live"
-      ? { bg: "rgba(52, 211, 153, 0.14)", fg: UP }
+      ? { bg: UP_SOFT, fg: UP }
       : status === "Upcoming"
-        ? { bg: "rgba(251, 191, 36, 0.14)", fg: AMBER }
+        ? { bg: AMBER_SOFT, fg: AMBER }
         : { bg: CARD, fg: SECONDARY };
   return (
     <View style={[styles.tag, { backgroundColor: tone.bg }]}>
@@ -168,17 +173,17 @@ const styles = StyleSheet.create({
   join: {
     alignItems: "center",
     backgroundColor: INK,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     justifyContent: "center",
-    minHeight: 40,
+    minHeight: 56,
     paddingHorizontal: 24,
     paddingVertical: 8,
   },
-  joinLabel: { color: "#FFFFFF", fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  joinLabel: { color: PAPER, fontSize: 16, fontWeight: "600", lineHeight: 22 },
   joined: {
     alignItems: "center",
     backgroundColor: SHEET,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     justifyContent: "center",
     minHeight: 40,
     paddingHorizontal: 24,
@@ -189,8 +194,8 @@ const styles = StyleSheet.create({
   meta: { color: SECONDARY, fontSize: 13, fontWeight: "500", lineHeight: 18 },
   name: { color: INK, flex: 1, fontSize: 18, fontWeight: "700", lineHeight: 26 },
   notice: {
-    backgroundColor: "rgba(217, 45, 32, 0.08)",
-    borderColor: "rgba(217, 45, 32, 0.30)",
+    backgroundColor: DOWN_SOFT,
+    borderColor: DOWN_SOFT,
     borderRadius: 16,
     borderWidth: 1,
     padding: 12,
@@ -201,7 +206,7 @@ const styles = StyleSheet.create({
   retry: {
     alignItems: "center",
     backgroundColor: CARD,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     marginTop: 8,
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -220,20 +225,20 @@ const styles = StyleSheet.create({
   tag: {
     alignItems: "center",
     alignSelf: "flex-start",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     flexDirection: "row",
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  tagDot: { borderRadius: 9999, height: 6, width: 6 },
+  tagDot: { borderRadius: RADIUS.pill, height: 6, width: 6 },
   tagLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
   title: {
     color: INK,
-    fontSize: 22,
-    fontWeight: "800",
+    fontSize: 26,
+    fontWeight: "700",
     letterSpacing: -0.4,
-    lineHeight: 30,
+    lineHeight: 32,
     paddingHorizontal: 20,
   },
 });

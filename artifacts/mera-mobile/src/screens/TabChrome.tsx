@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { CARD, CARD_SOFT, INK, SECONDARY, TEAL } from "./homeTheme";
+import { CARD, CARD_SOFT, DOWN, INK, ON_ACCENT, RADIUS, SECONDARY, TEAL } from "./homeTheme";
 
 type TopFilterBarProps = {
   onMenu?: () => void;
@@ -121,8 +121,8 @@ const styles = StyleSheet.create({
   emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22 },
   iconButton: { padding: 6, position: "relative" },
   menuDot: {
-    backgroundColor: "#F6465D",
-    borderRadius: 9999,
+    backgroundColor: DOWN,
+    borderRadius: RADIUS.pill,
     height: 8,
     position: "absolute",
     right: 4,
@@ -136,11 +136,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginTop: 8,
   },
-  sectionTitle: { color: INK, fontSize: 16, fontWeight: "700", lineHeight: 24 },
+  sectionTitle: { color: INK, fontSize: 18, fontWeight: "700", lineHeight: 24 },
   segment: {
     alignItems: "center",
     backgroundColor: CARD,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     flex: 1,
     flexDirection: "row",
     marginHorizontal: 10,
@@ -148,15 +148,15 @@ const styles = StyleSheet.create({
   },
   segmentActive: {
     backgroundColor: INK,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     paddingHorizontal: 18,
     paddingVertical: 8,
   },
-  segmentActiveLabel: { color: "#FFFFFF", fontSize: 14, fontWeight: "700" },
+  segmentActiveLabel: { color: ON_ACCENT, fontSize: 14, fontWeight: "700" },
   segmentChevron: {
     alignItems: "center",
     backgroundColor: CARD_SOFT,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     height: 32,
     justifyContent: "center",
     width: 32,

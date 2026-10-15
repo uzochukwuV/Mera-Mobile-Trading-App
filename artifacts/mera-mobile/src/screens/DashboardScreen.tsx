@@ -25,20 +25,20 @@ const DEFAULT_COPIES: CopyRow[] = [];
 
 const DEFAULT_ACTIVITY: ActivityRow[] = [];
 
-// Light theme — local to Home (mirrors homeTheme).
-const BG = "#F1F3F6";
-const SHEET = "#FFFFFF";
-const CARD = "#FFFFFF";
-const CARD_SOFT = "#E9EDF2";
-const BORDER = "#E2E7EE";
-const INK = "#13171D";
-const SECONDARY = "#5B6472";
-const MUTED = "#8A94A6";
-const TEAL = "#0E7C6B";
-const ORANGE = "#FF6B1A";
-const UP = "#178A4C";
-const DOWN = "#D92D20";
-const AMBER = "#B45309";
+import {
+  AMBER,
+  BG,
+  BORDER,
+  CARD,
+  CARD_SOFT,
+  DOWN,
+  INK,
+  MUTED,
+  SECONDARY,
+  SHEET,
+  TEAL,
+  UP,
+} from "./homeTheme";
 
 function StatusPill({ status }: { status: string }) {
   const tone =
@@ -376,10 +376,10 @@ const styles = StyleSheet.create({
   },
   balance: {
     color: INK,
-    fontSize: 28,
+    fontSize: 34,
     fontWeight: "800",
     letterSpacing: -0.5,
-    lineHeight: 34,
+    lineHeight: 41,
     textAlign: "center",
     fontVariant: ["tabular-nums"],
   },

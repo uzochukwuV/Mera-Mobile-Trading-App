@@ -16,24 +16,38 @@ import {
   CARD,
   CARD_SOFT,
   DOWN,
+  DOWN_SOFT,
   INK,
   MUTED,
+  PAPER,
+  RADIUS,
   SECONDARY,
   SHEET,
   TEAL,
   UP,
+  UP_SOFT,
 } from "./homeTheme";
 import type { PositionRow, TraderProfileProps } from "./types";
 
 const PRESETS = ["100", "250", "500"] as const;
 
-function Stat({ label, value, tone }: { label: string; value: string; tone?: "up" | "down" }) {
+function Stat({
+  label,
+  value,
+  tone,
+  hero,
+}: {
+  label: string;
+  value: string;
+  tone?: "up" | "down";
+  hero?: boolean;
+}) {
   return (
     <View style={styles.stat}>
       <Text style={styles.statLabel}>{label}</Text>
       <Text
         style={[
-          styles.statValue,
+          hero ? styles.heroValue : styles.statValue,
           tone === "up" ? styles.up : tone === "down" ? styles.down : null,
         ]}
       >
@@ -149,7 +163,7 @@ export function TraderProfileScreen(props: TraderProfileProps = {}): ReactElemen
 
             <View style={styles.stats}>
               <View style={styles.statRow}>
-                <Stat label="30D PNL" value={pnl30d} tone={pnlUp ? "up" : "down"} />
+                <Stat label="30D PNL" value={pnl30d} tone={pnlUp ? "up" : "down"} hero />
                 <Stat label="24H PNL" value={pnl24h} />
               </View>
               <View style={styles.statRow}>
@@ -311,7 +325,7 @@ const styles = StyleSheet.create({
   avatar: {
     alignItems: "center",
     backgroundColor: CARD_SOFT,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     height: 60,
     justifyContent: "center",
     width: 60,
@@ -322,12 +336,12 @@ const styles = StyleSheet.create({
   bio: { color: SECONDARY, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   coin: {
     alignItems: "center",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     height: 42,
     justifyContent: "center",
     width: 42,
   },
-  coinText: { color: "#FFFFFF", fontSize: 17, fontWeight: "800" },
+  coinText: { color: PAPER, fontSize: 17, fontWeight: "800" },
   copy: {
     backgroundColor: CARD,
     borderColor: BORDER,
@@ -343,27 +357,27 @@ const styles = StyleSheet.create({
   emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
   emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
   fieldLabel: { color: SECONDARY, fontSize: 13, fontWeight: "600" },
-  followers: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
+  followers: { color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 19 },
   follow: {
     alignItems: "center",
-    borderRadius: 16,
+    borderRadius: RADIUS.pill,
     justifyContent: "center",
-    minHeight: 52,
+    minHeight: 56,
     paddingHorizontal: 24,
     paddingVertical: 14,
   },
-  followActive: { backgroundColor: INK },
-  followActiveLabel: { color: "#FFFFFF", fontSize: 15, fontWeight: "700" },
-  followIdle: { backgroundColor: CARD_SOFT },
-  followIdleLabel: { color: INK, fontSize: 15, fontWeight: "600" },
+  followActive: { backgroundColor: TEAL },
+  followActiveLabel: { color: PAPER, fontSize: 16, fontWeight: "600" },
+  followIdle: { backgroundColor: CARD, borderColor: BORDER, borderWidth: 1 },
+  followIdleLabel: { color: SECONDARY, fontSize: 16, fontWeight: "600" },
   hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
-  handle: { color: INK, fontSize: 22, fontWeight: "800", letterSpacing: -0.4, lineHeight: 30 },
+  handle: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
   header: { alignItems: "center", flexDirection: "row", gap: 14 },
   headerMain: { flex: 1, gap: 2 },
   input: {
     backgroundColor: SHEET,
     borderColor: BORDER,
-    borderRadius: 14,
+    borderRadius: RADIUS.input,
     borderWidth: 1,
     color: INK,
     fontSize: 17,
@@ -393,7 +407,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: SHEET,
     borderColor: BORDER,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
     flex: 1,
     justifyContent: "center",
@@ -405,7 +419,7 @@ const styles = StyleSheet.create({
   retry: {
     alignItems: "center",
     backgroundColor: CARD,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     marginTop: 8,
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -424,25 +438,26 @@ const styles = StyleSheet.create({
   rowTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
   screen: { backgroundColor: BG, flex: 1 },
   scroll: { gap: 14, padding: 20, paddingBottom: 32 },
-  sectionTitle: { color: INK, fontSize: 17, fontWeight: "700", lineHeight: 24 },
-  side: { borderRadius: 9999, paddingHorizontal: 10, paddingVertical: 4 },
+  sectionTitle: { color: INK, fontSize: 18, fontWeight: "700", lineHeight: 24 },
+  side: { borderRadius: RADIUS.pill, paddingHorizontal: 10, paddingVertical: 4 },
   sideLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  sideLong: { backgroundColor: "rgba(52, 211, 153, 0.16)" },
-  sideShort: { backgroundColor: "rgba(248, 113, 113, 0.16)" },
+  sideLong: { backgroundColor: UP_SOFT },
+  sideShort: { backgroundColor: DOWN_SOFT },
   start: {
     alignItems: "center",
     backgroundColor: INK,
-    borderRadius: 16,
+    borderRadius: RADIUS.pill,
     justifyContent: "center",
     minHeight: 56,
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  startLabel: { color: "#FFFFFF", fontSize: 15, fontWeight: "700", lineHeight: 20 },
+  startLabel: { color: PAPER, fontSize: 16, fontWeight: "600", lineHeight: 22 },
   stat: { flex: 1, gap: 2 },
   statLabel: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 0.6, lineHeight: 14 },
   statRow: { flexDirection: "row", gap: 12 },
   statValue: { color: INK, fontSize: 17, fontWeight: "700", fontVariant: ["tabular-nums"], lineHeight: 22 },
+  heroValue: { color: INK, fontSize: 34, fontWeight: "800", fontVariant: ["tabular-nums"], lineHeight: 41 },
   stats: {
     backgroundColor: CARD,
     borderColor: BORDER,

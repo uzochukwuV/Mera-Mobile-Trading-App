@@ -1,5 +1,16 @@
 import type { ReactElement } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  BORDER,
+  CARD,
+  DOWN,
+  DOWN_SOFT,
+  INK,
+  ON_ACCENT,
+  PAPER,
+  RADIUS,
+  SECONDARY,
+} from "./homeTheme";
 import type { OnboardingProps } from "./types";
 
 // Simple white onboarding: app icon centered, two buttons pinned below.
@@ -108,7 +119,7 @@ export function OnboardingScreen(props: OnboardingProps = {}): ReactElement {
 
 const styles = StyleSheet.create({
   address: {
-    color: "#6B7280",
+    color: SECONDARY,
     fontFamily: "Menlo",
     fontSize: 13,
     fontWeight: "600",
@@ -126,9 +137,9 @@ const styles = StyleSheet.create({
   },
   disabled: { opacity: 0.5 },
   errorCard: {
-    backgroundColor: "#FEF2F2",
-    borderColor: "#FECACA",
-    borderRadius: 12,
+    backgroundColor: DOWN_SOFT,
+    borderColor: BORDER,
+    borderRadius: RADIUS.card,
     borderWidth: 1,
     gap: 8,
     marginTop: 20,
@@ -136,8 +147,8 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   errorMessage: {
-    color: "#991B1B",
-    fontSize: 14,
+    color: DOWN,
+    fontSize: 13,
     lineHeight: 20,
     textAlign: "center",
   },
@@ -149,8 +160,8 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
   primaryButton: {
     alignItems: "center",
-    backgroundColor: "#111111",
-    borderRadius: 16,
+    backgroundColor: INK,
+    borderRadius: RADIUS.pill,
     justifyContent: "center",
     minHeight: 56,
     paddingHorizontal: 24,
@@ -158,19 +169,19 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   primaryLabel: {
-    color: "#FFFFFF",
+    color: ON_ACCENT,
     fontSize: 16,
     fontWeight: "600",
     lineHeight: 22,
   },
   retry: { alignItems: "center", paddingVertical: 4 },
   retryLabel: {
-    color: "#111111",
+    color: INK,
     fontSize: 14,
     fontWeight: "600",
   },
   screen: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: PAPER,
     flex: 1,
     paddingBottom: 24,
     paddingHorizontal: 24,
@@ -178,9 +189,9 @@ const styles = StyleSheet.create({
   },
   secondaryButton: {
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderColor: "#E5E7EB",
-    borderRadius: 16,
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
     justifyContent: "center",
     minHeight: 56,
@@ -189,21 +200,21 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   secondaryLabel: {
-    color: "#111111",
+    color: INK,
     fontSize: 16,
     fontWeight: "600",
     lineHeight: 22,
   },
   skip: { alignItems: "center", paddingVertical: 8 },
   skipLabel: {
-    color: "#6B7280",
+    color: SECONDARY,
     fontSize: 14,
     fontWeight: "600",
     lineHeight: 20,
     textDecorationLine: "underline",
   },
   status: {
-    color: "#6B7280",
+    color: SECONDARY,
     fontSize: 13,
     lineHeight: 18,
     textAlign: "center",

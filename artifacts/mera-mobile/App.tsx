@@ -16,6 +16,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { isAddressEqual } from "viem";
+import { BORDER, INK, INDIGO, MUTED, PAPER, RADIUS, SHADOW_SOFT } from "./src/screens/homeTheme";
 import { type AccountState } from "./src/account";
 import {
   ApiError,
@@ -1820,7 +1821,7 @@ export default function App() {
                   <Ionicons
                     name={active ? tab.icon : tab.iconOutline}
                     size={24}
-                    color={active ? "#13171D" : "#8A94A6"}
+                    color={active ? INK : MUTED}
                   />
                   <Text
                     style={[
@@ -1841,8 +1842,8 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  screen: { backgroundColor: "#F1F3F6", flex: 1 },
-  onboardingScreen: { backgroundColor: "#FFFFFF", flex: 1 },
+  screen: { backgroundColor: PAPER, flex: 1 },
+  onboardingScreen: { backgroundColor: PAPER, flex: 1 },
   tab: {
     alignItems: "center",
     gap: 3,
@@ -1851,31 +1852,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  tabActiveText: { color: "#13171D" },
+  tabActiveText: { color: INK },
   tabBar: {
-    backgroundColor: "#FFFFFF",
-    borderTopColor: "#E2E7EE",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: PAPER,
+    borderTopColor: BORDER,
+    borderTopLeftRadius: RADIUS.sheet,
+    borderTopRightRadius: RADIUS.sheet,
     borderTopWidth: 1,
     flexDirection: "row",
     justifyContent: "space-around",
     paddingBottom: spacing.md,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
-    shadowColor: "#0F172A",
+    ...SHADOW_SOFT,
     shadowOffset: { width: 0, height: -8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 20,
-    elevation: 8,
   },
   tabDot: {
-    backgroundColor: "#FF6B1A",
-    borderRadius: 9999,
+    backgroundColor: INDIGO,
+    borderRadius: RADIUS.pill,
     height: 5,
     width: 5,
   },
-  tabIdleText: { color: "#8A94A6" },
+  tabIdleText: { color: MUTED },
   tabLabel: { fontSize: 11, fontWeight: "600", lineHeight: 14 },
   tour: { flex: 1 },
 });

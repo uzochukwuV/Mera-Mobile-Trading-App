@@ -12,15 +12,20 @@ import { Ionicons } from "@expo/vector-icons";
 import { ApiError, getRiskEvents, orderTimeLabel, type RiskEvent } from "../api";
 import { tintForName } from "./coinMeta";
 import {
+  AMBER,
+  AMBER_SOFT,
   BG,
   BORDER,
   CARD,
   DOWN,
+  DOWN_SOFT,
   INK,
   MUTED,
+  RADIUS,
   SECONDARY,
   TEAL,
   UP,
+  UP_SOFT,
 } from "./homeTheme";
 import type { CopyManagementProps, CopySettingRow } from "./types";
 
@@ -30,16 +35,16 @@ function StatusTag({ status }: { status: CopySettingRow["status"] }) {
     <View
       style={[
         styles.tag,
-        { backgroundColor: active ? "rgba(52, 211, 153, 0.14)" : "rgba(251, 191, 36, 0.14)" },
+        { backgroundColor: active ? UP_SOFT : AMBER_SOFT },
       ]}
     >
       <View
         style={[
           styles.tagDot,
-          { backgroundColor: active ? UP : "#FBBF24" },
+          { backgroundColor: active ? UP : AMBER },
         ]}
       />
-      <Text style={[styles.tagLabel, { color: active ? UP : "#FBBF24" }]}>
+      <Text style={[styles.tagLabel, { color: active ? UP : AMBER }]}>
         {status}
       </Text>
     </View>
@@ -267,7 +272,7 @@ const styles = StyleSheet.create({
   actions: { flexDirection: "row", gap: 8 },
   avatar: {
     alignItems: "center",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     height: 44,
     justifyContent: "center",
     width: 44,
@@ -285,7 +290,7 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   dangerBody: { color: MUTED, fontSize: 13, lineHeight: 19 },
-  dangerTitle: { color: INK, fontSize: 15, fontWeight: "700", lineHeight: 20 },
+  dangerTitle: { color: INK, fontSize: 18, fontWeight: "700", lineHeight: 24 },
   down: { color: DOWN },
   emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
   emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
@@ -294,7 +299,7 @@ const styles = StyleSheet.create({
   kill: {
     alignItems: "center",
     borderColor: DOWN,
-    borderRadius: 16,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
     justifyContent: "center",
     minHeight: 56,
@@ -302,11 +307,11 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     width: "100%",
   },
-  killLabel: { color: DOWN, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  killLabel: { color: DOWN, fontSize: 16, fontWeight: "600", lineHeight: 22 },
   loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
   mini: {
     alignItems: "center",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     borderWidth: 1,
     flex: 1,
     justifyContent: "center",
@@ -320,8 +325,8 @@ const styles = StyleSheet.create({
   miniLabelDanger: { color: DOWN },
   miniLabelGhost: { color: SECONDARY },
   notice: {
-    backgroundColor: "rgba(248, 113, 113, 0.10)",
-    borderColor: "rgba(248, 113, 113, 0.35)",
+    backgroundColor: DOWN_SOFT,
+    borderColor: DOWN_SOFT,
     borderRadius: 16,
     borderWidth: 1,
     padding: 12,
@@ -331,7 +336,7 @@ const styles = StyleSheet.create({
   retry: {
     alignItems: "center",
     backgroundColor: CARD,
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     marginTop: 8,
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -360,15 +365,15 @@ const styles = StyleSheet.create({
   tag: {
     alignItems: "center",
     alignSelf: "flex-start",
-    borderRadius: 9999,
+    borderRadius: RADIUS.pill,
     flexDirection: "row",
     gap: 6,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
-  tagDot: { borderRadius: 9999, height: 6, width: 6 },
+  tagDot: { borderRadius: RADIUS.pill, height: 6, width: 6 },
   tagLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  title: { color: INK, fontSize: 24, fontWeight: "800", letterSpacing: -0.4, lineHeight: 32 },
+  title: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
   up: { color: UP },
 });
 

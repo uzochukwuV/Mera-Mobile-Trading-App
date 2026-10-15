@@ -1,9 +1,10 @@
 import type { ReactElement } from "react";
 import { Image, StatusBar, StyleSheet, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { BORDER, PAPER } from "./homeTheme";
 import type { SplashProps } from "./types";
 
-const WAVE = "#E2E7EE";
+const WAVE = BORDER;
 
 // White splash with the Mera mark centered over faint wave arcs.
 // No text, no status — it auto-advances.
@@ -53,7 +54,7 @@ const styles = StyleSheet.create({
   },
   screen: {
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: PAPER,
     flex: 1,
     justifyContent: "center",
   },
