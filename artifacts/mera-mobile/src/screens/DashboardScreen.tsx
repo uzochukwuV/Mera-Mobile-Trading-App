@@ -1,7 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Modal,
   Pressable,
   RefreshControl,
@@ -9,8 +8,6 @@ import {
   StyleSheet,
   Text,
   View,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { TopFilterBar } from "./TabChrome";
@@ -22,22 +19,11 @@ import type {
   PositionRow,
 } from "./types";
 
-const DEFAULT_POSITIONS: PositionRow[] = [
-  { symbol: "BTC", side: "Long", size: "0.12", mark: "84,031.20", pnl: "+142.30", pnlUp: true },
-  { symbol: "ETH", side: "Short", size: "1.40", mark: "2,531.16", pnl: "-28.12", pnlUp: false },
-];
+const DEFAULT_POSITIONS: PositionRow[] = [];
 
-const DEFAULT_COPIES: CopyRow[] = [
-  { handle: "satoshi-trades", allocation: "500.00", status: "Active" },
-  { handle: "macro-desk", allocation: "250.00", status: "Paused" },
-];
+const DEFAULT_COPIES: CopyRow[] = [];
 
-const DEFAULT_ACTIVITY: ActivityRow[] = [
-  { id: "1", title: "Qash Transfer Completed", detail: "Your transfer of NGN 2,392 to VICTOR UZ…", status: "Filled", tone: "ok" },
-  { id: "2", title: "Copy fill · ETH short", detail: "0.80 · macro-desk", status: "Partial", tone: "warning" },
-  { id: "3", title: "Order submitted", detail: "SOL long · 2.00", status: "Submitted", tone: "neutral" },
-  { id: "4", title: "Risk event", detail: "Daily loss limit hit", status: "Failed", tone: "error" },
-];
+const DEFAULT_ACTIVITY: ActivityRow[] = [];
 
 // Light theme — local to Home (mirrors homeTheme).
 const BG = "#F1F3F6";
@@ -53,12 +39,6 @@ const ORANGE = "#FF6B1A";
 const UP = "#178A4C";
 const DOWN = "#D92D20";
 const AMBER = "#B45309";
-const PROMO = "#B8189C";
-const PROMO_2 = "#4C1D95";
-
-const { width: SCREEN_W } = Dimensions.get("window");
-const PROMO_W = SCREEN_W - 40 - 28;
-const PROMO_GAP = 12;
 
 function StatusPill({ status }: { status: string }) {
   const tone =
@@ -98,15 +78,9 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
   } = props;
 
   const [killOpen, setKillOpen] = useState(false);
-  const [promoIndex, setPromoIndex] = useState(0);
   const update = activity[0];
   const isEmpty =
     positions.length === 0 && copies.length === 0 && activity.length === 0;
-
-  function handlePromoScroll(e: NativeSyntheticEvent<NativeScrollEvent>): void {
-    const index = Math.round(e.nativeEvent.contentOffset.x / (PROMO_W + PROMO_GAP));
-    setPromoIndex(Math.max(0, Math.min(1, index)));
-  }
 
   return (
     <View style={styles.screen}>
@@ -198,67 +172,6 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
             </View>
           ) : (
             <>
-          {/* Promo carousel */}
-          <ScrollView
-            horizontal
-            pagingEnabled={false}
-            snapToInterval={PROMO_W + PROMO_GAP}
-            decelerationRate="fast"
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.promoRow}
-            onMomentumScrollEnd={handlePromoScroll}
-          >
-            <View style={[styles.promo, { backgroundColor: PROMO }]}>
-              <View style={[styles.promoCircle, styles.promoCircleA]} />
-              <View style={[styles.promoCircle, styles.promoCircleB]} />
-              <Ionicons
-                name="paper-plane"
-                size={72}
-                color="rgba(255,255,255,0.9)"
-                style={styles.promoPlane}
-              />
-              <Text style={styles.promoTitle}>Qash now has its own app</Text>
-              <Text style={styles.promoBody}>
-                Download the Qash app for a faster payments experience
-              </Text>
-              <View style={styles.promoSpacer} />
-              <View style={styles.promoButton}>
-                <Ionicons name="play" size={14} color="#111111" />
-                <Text style={styles.promoButtonLabel}>Get it on Google play</Text>
-              </View>
-            </View>
-            <View style={[styles.promo, { backgroundColor: PROMO_2 }]}>
-              <View style={[styles.promoCircle, styles.promoCircleA]} />
-              <View style={[styles.promoCircle, styles.promoCircleB]} />
-              <Ionicons
-                name="people"
-                size={64}
-                color="rgba(255,255,255,0.9)"
-                style={styles.promoPlane}
-              />
-              <Text style={styles.promoTitle}>Copy the best traders</Text>
-              <Text style={styles.promoBody}>
-                Follow top performers and mirror their moves automatically
-              </Text>
-              <View style={styles.promoSpacer} />
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => onCopyTrader?.()}
-                style={styles.promoButton}
-              >
-                <Text style={styles.promoButtonLabel}>Start copying</Text>
-              </Pressable>
-            </View>
-          </ScrollView>
-          <View style={styles.dots}>
-            {[0, 1].map((i) => (
-              <View
-                key={i}
-                style={[styles.dot, i === promoIndex ? styles.dotActive : null]}
-              />
-            ))}
-          </View>
-
           <SectionHead title="Stay Updated" action="See all" onAction={onSeeActivity} />
           {update ? (
             <View style={styles.updateCard}>
@@ -512,19 +425,6 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   counterLabel: { color: SECONDARY, fontSize: 11, fontWeight: "600" },
-  dot: {
-    backgroundColor: "#3A4456",
-    borderRadius: 9999,
-    height: 6,
-    width: 6,
-  },
-  dotActive: { backgroundColor: INK },
-  dots: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 6,
-    justifyContent: "center",
-  },
   down: { color: DOWN },
   empty: { gap: 4, padding: 8 },
   emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19 },
@@ -600,42 +500,6 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   riskText: { color: AMBER, fontSize: 13, fontWeight: "600", lineHeight: 19, textAlign: "center" },
-  promo: {    borderRadius: 22,
-    height: 200,
-    overflow: "hidden",
-    padding: 20,
-    position: "relative",
-    width: PROMO_W,
-  },
-  promoBody: {
-    color: "rgba(255,255,255,0.85)",
-    fontSize: 13,
-    lineHeight: 19,
-    marginTop: 6,
-    maxWidth: "62%",
-  },
-  promoButton: {
-    alignItems: "center",
-    alignSelf: "flex-start",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 9999,
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  promoButtonLabel: { color: "#111111", fontSize: 13, fontWeight: "700" },
-  promoCircle: {
-    backgroundColor: "rgba(255,255,255,0.12)",
-    borderRadius: 9999,
-    position: "absolute",
-  },
-  promoCircleA: { height: 220, right: -60, top: -80, width: 220 },
-  promoCircleB: { bottom: -100, height: 180, right: 40, width: 180 },
-  promoPlane: { position: "absolute", right: 24, top: 56, transform: [{ rotate: "-18deg" }] },
-  promoRow: { gap: PROMO_GAP, paddingRight: 20 },
-  promoSpacer: { flex: 1 },
-  promoTitle: { color: "#FFFFFF", fontSize: 21, fontWeight: "800", lineHeight: 27, maxWidth: "68%" },
   row: {
     alignItems: "center",
     flexDirection: "row",
