@@ -1,4 +1,4 @@
-import { useState, type ReactElement, type ReactNode } from "react";
+import { useState, type ReactElement } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -10,8 +10,31 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { TopFilterBar } from "./TabChrome";
+import { SectionHead } from "./TabChrome";
 import { coinColor, coinName, tintForName } from "./coinMeta";
+import {
+  AMBER,
+  AMBER_SOFT,
+  BG,
+  BORDER,
+  CARD,
+  CARD_SOFT,
+  DOWN,
+  DOWN_SOFT,
+  INDIGO,
+  INDIGO_SOFT,
+  INK,
+  MUTED,
+  ON_ACCENT,
+  PAPER,
+  RADIUS,
+  SECONDARY,
+  SHADOW_SOFT,
+  SHEET,
+  UP,
+  UP_SOFT,
+} from "./homeTheme";
+import { PillButton } from "./ui";
 import type {
   ActivityRow,
   CopyRow,
@@ -19,35 +42,14 @@ import type {
   PositionRow,
 } from "./types";
 
-const DEFAULT_POSITIONS: PositionRow[] = [];
-
-const DEFAULT_COPIES: CopyRow[] = [];
-
-const DEFAULT_ACTIVITY: ActivityRow[] = [];
-
-import {
-  AMBER,
-  BG,
-  BORDER,
-  CARD,
-  CARD_SOFT,
-  DOWN,
-  INK,
-  MUTED,
-  SECONDARY,
-  SHEET,
-  TEAL,
-  UP,
-} from "./homeTheme";
-
 function StatusPill({ status }: { status: string }) {
   const tone =
     status === "Filled" || status === "Active"
-      ? { bg: "rgba(52, 211, 153, 0.14)", fg: UP }
+      ? { bg: UP_SOFT, fg: UP }
       : status === "Failed"
-        ? { bg: "rgba(248, 113, 113, 0.14)", fg: DOWN }
+        ? { bg: DOWN_SOFT, fg: DOWN }
         : status === "Partial" || status === "Paused"
-          ? { bg: "rgba(251, 191, 36, 0.14)", fg: AMBER }
+          ? { bg: AMBER_SOFT, fg: AMBER }
           : { bg: CARD_SOFT, fg: SECONDARY };
   return (
     <View style={[styles.statusPill, { backgroundColor: tone.bg }]}>
@@ -56,14 +58,53 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
+function QuickAction({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress?: () => void;
+}): ReactElement {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      hitSlop={4}
+      onPress={onPress}
+      style={({ pressed }) => [styles.action, pressed ? styles.pressed : null]}
+    >
+      <View style={styles.actionIcon}>
+        <Ionicons name={icon} size={22} color={INDIGO} />
+      </View>
+      <Text style={styles.actionLabel}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function EmptyState({ title, body, icon }: { title: string; body: string; icon: keyof typeof Ionicons.glyphMap }): ReactElement {
+  return (
+    <View style={styles.empty}>
+      <Ionicons name={icon} size={28} color={MUTED} />
+      <Text style={styles.emptyTitle}>{title}</Text>
+      <Text style={styles.emptyBody}>{body}</Text>
+    </View>
+  );
+}
+
 export function DashboardScreen(props: DashboardProps = {}): ReactElement {
   const {
-    equity = "0.008",
+    equity = "0.00",
     available,
+    lastUpdatedSecondsAgo = 0,
+    unread = 0,
+    realizedPnlToday = "+0.00",
+    realizedPnlUp = true,
     riskNotice = null,
-    positions = DEFAULT_POSITIONS,
-    copies = DEFAULT_COPIES,
-    activity = DEFAULT_ACTIVITY,
+    positions = [],
+    copies = [],
+    activity = [],
     loading = false,
     loadError = null,
     refreshing = false,
@@ -78,230 +119,243 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
   } = props;
 
   const [killOpen, setKillOpen] = useState(false);
-  const update = activity[0];
   const isEmpty =
     positions.length === 0 && copies.length === 0 && activity.length === 0;
+  const updatedLabel =
+    lastUpdatedSecondsAgo < 60
+      ? `Updated ${lastUpdatedSecondsAgo}s ago`
+      : `Updated ${Math.floor(lastUpdatedSecondsAgo / 60)}m ago`;
 
   return (
     <View style={styles.screen}>
-      <TopFilterBar
-        onSearch={() => onSeeActivity?.()}
-        onStocks={() => onMarkets?.()}
-        onMoreMarkets={() => onMarkets?.()}
-      />
-      {/* Black sheet */}
-      <View style={styles.sheet}>
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          refreshControl={
-            onRefresh ? (
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={SECONDARY}
-              />
-            ) : undefined
-          }
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Portfolio</Text>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Activity${unread > 0 ? `, ${unread} unread` : ""}`}
+          hitSlop={8}
+          onPress={() => onSeeActivity?.()}
+          style={styles.bell}
         >
-          <Text style={styles.balanceCaption}>aUSD BALANCE</Text>
-          <Text style={styles.balance}>{equity}</Text>
-          {available !== undefined ? (
-            <Text style={styles.walletCaption}>
-              {available} aUSD in wallet
-            </Text>
-          ) : null}
-          <Pressable
-            accessibilityLabel="See more"
-            accessibilityRole="button"
-            hitSlop={8}
-            onPress={() => onSeeActivity?.()}
-            style={styles.seeMore}
-          >
-            <Text style={styles.seeMoreLabel}>See more</Text>
-          </Pressable>
-
-          {riskNotice ? (
-            <View style={styles.riskBanner}>
-              <Text style={styles.riskText}>{riskNotice}</Text>
+          <Ionicons name="notifications-outline" size={24} color={INK} />
+          {unread > 0 ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeLabel}>
+                {unread > 9 ? "9+" : String(unread)}
+              </Text>
             </View>
           ) : null}
+        </Pressable>
+      </View>
 
-          {perplConnected === false ? (
-            <View style={styles.connectCard}>
-              <View style={styles.connectMain}>
-                <Text style={styles.connectTitle}>Connect Perpl to trade</Text>
-                <Text style={styles.connectBody}>
-                  Enroll a trading key, then fund your wallet to start.
-                </Text>
-              </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Connect Perpl"
-                onPress={() => onConnectPerpl?.()}
-                style={({ pressed }) => [
-                  styles.connectButton,
-                  pressed ? styles.pressed : null,
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={SECONDARY}
+            />
+          ) : undefined
+        }
+      >
+        <View style={styles.hero}>
+          <Text style={styles.heroCaption}>TOTAL EQUITY · aUSD</Text>
+          <Text style={styles.heroValue}>{equity}</Text>
+          <View style={styles.heroRow}>
+            <View
+              style={[
+                styles.pnlPill,
+                { backgroundColor: realizedPnlUp ? UP_SOFT : DOWN_SOFT },
+              ]}
+            >
+              <Ionicons
+                name={realizedPnlUp ? "arrow-up" : "arrow-down"}
+                size={12}
+                color={realizedPnlUp ? UP : DOWN}
+              />
+              <Text
+                style={[
+                  styles.pnlLabel,
+                  { color: realizedPnlUp ? UP : DOWN },
                 ]}
               >
-                <Text style={styles.connectButtonLabel}>Connect</Text>
-              </Pressable>
+                {realizedPnlToday} today
+              </Text>
             </View>
-          ) : null}
-
-          {loading && isEmpty ? (
-            <View style={styles.loading}>
-              <ActivityIndicator size="large" color={TEAL} />
-              <Text style={styles.loadingText}>Loading live data…</Text>
-            </View>
-          ) : loadError && isEmpty ? (
-            <View style={styles.loading}>
-              <Text style={styles.emptyTitle}>Couldn't load dashboard</Text>
-              <Text style={styles.loadingText}>{loadError}</Text>
-              {onRefresh ? (
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={onRefresh}
-                  style={({ pressed }) => [
-                    styles.retry,
-                    pressed ? styles.pressed : null,
-                  ]}
-                >
-                  <Text style={styles.retryLabel}>Try again</Text>
-                </Pressable>
-              ) : null}
-            </View>
-          ) : (
-            <>
-          <SectionHead title="Stay Updated" action="See all" onAction={onSeeActivity} />
-          {update ? (
-            <View style={styles.updateCard}>
-              <View style={styles.updateIcon}>
-                <Ionicons name="megaphone" size={20} color={TEAL} />
-              </View>
-              <View style={styles.rowMain}>
-                <Text style={styles.updateTitle} numberOfLines={1}>
-                  🎉 {update.title}
-                </Text>
-                <Text style={styles.updateDetail} numberOfLines={1}>
-                  {update.detail}
-                </Text>
-              </View>
-              <View style={styles.counter}>
-                <Text style={styles.counterLabel}>1/{activity.length}</Text>
-              </View>
-            </View>
-          ) : null}
-
-          <Text style={styles.sectionTitleSolo}>Your Wallet</Text>
-          <View style={styles.walletList}>
-            {positions.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyTitle}>No open positions</Text>
-                <Text style={styles.emptyBody}>
-                  Fund your wallet to start trading.
-                </Text>
-              </View>
-            ) : (
-              positions.map((row, index) => (
-                <View key={`${row.symbol}-${index}`}>
-                  {index > 0 ? <View style={styles.hairline} /> : null}
-                  <View style={styles.walletRow}>
-                    <View
-                      style={[styles.coin, { backgroundColor: coinColor(row.symbol) }]}
-                    >
-                      <Text style={styles.coinText}>{row.symbol.slice(0, 1)}</Text>
-                    </View>
-                    <View style={styles.rowMain}>
-                      <Text style={styles.walletName}>
-                        {coinName(row.symbol)}{" "}
-                        <Text style={styles.walletSymbol}>{row.symbol}</Text>
-                      </Text>
-                      <Text style={styles.walletFiat}>{row.mark}</Text>
-                    </View>
-                    <View style={styles.rowRight}>
-                      <Text style={styles.walletBalance}>{row.size}</Text>
-                      <Text
-                        style={[
-                          styles.walletChange,
-                          row.pnlUp ? styles.up : styles.down,
-                        ]}
-                      >
-                        {row.pnl}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              ))
-            )}
+            {available !== undefined ? (
+              <Text style={styles.heroAvailable}>{available} available</Text>
+            ) : null}
           </View>
+          <Text style={styles.heroUpdated}>{updatedLabel}</Text>
+        </View>
 
-          <SectionHead title="Copying" action="Manage" onAction={onManageCopies} />
-          <View style={styles.list}>
-            {copies.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyTitle}>Not copying anyone</Text>
-                <Text style={styles.emptyBody}>Pick a trader to start.</Text>
-              </View>
-            ) : (
-              copies.map((row, index) => {
-                const tint = tintForName(row.handle);
-                return (
-                <View key={row.handle}>
-                  {index > 0 ? <View style={styles.hairline} /> : null}
-                  <View style={styles.row}>
-                    <View style={[styles.coin, { backgroundColor: tint.bg }]}>
-                      <Text style={[styles.coinText, { color: tint.fg }]}>
-                        {row.handle.slice(0, 1).toUpperCase()}
-                      </Text>
-                    </View>
-                    <View style={styles.rowMain}>
-                      <Text style={styles.rowTitle}>{row.handle}</Text>
-                      <Text style={styles.rowDetail}>{row.allocation} aUSD</Text>
-                    </View>
-                    <StatusPill status={row.status} />
-                  </View>
-                </View>
-                );
-              })
-            )}
-            <View style={styles.hairline} />
+        <View style={styles.actions}>
+          <QuickAction icon="stats-chart" label="Markets" onPress={() => onMarkets?.()} />
+          <QuickAction icon="people" label="Copy" onPress={() => onCopyTrader?.()} />
+          <QuickAction icon="time" label="Activity" onPress={() => onSeeActivity?.()} />
+        </View>
+
+        {riskNotice ? (
+          <View style={styles.riskBanner}>
+            <Ionicons name="warning" size={16} color={AMBER} />
+            <Text style={styles.riskText}>{riskNotice}</Text>
+          </View>
+        ) : null}
+
+        {perplConnected === false ? (
+          <View style={styles.connectCard}>
+            <View style={styles.connectIcon}>
+              <Ionicons name="link" size={20} color={INDIGO} />
+            </View>
+            <View style={styles.connectMain}>
+              <Text style={styles.connectTitle}>Connect Perpl to trade</Text>
+              <Text style={styles.connectBody}>
+                Enroll a trading key to start.
+              </Text>
+            </View>
             <Pressable
-              accessibilityLabel="Pause all copying"
               accessibilityRole="button"
-              hitSlop={8}
-              onPress={() => setKillOpen(true)}
-              style={styles.pauseAll}
+              accessibilityLabel="Connect Perpl"
+              onPress={() => onConnectPerpl?.()}
+              style={({ pressed }) => [
+                styles.connectButton,
+                pressed ? styles.pressed : null,
+              ]}
             >
-              <Text style={styles.pauseAllLabel}>Pause all copying</Text>
+              <Text style={styles.connectButtonLabel}>Connect</Text>
             </Pressable>
           </View>
+        ) : null}
 
-          <SectionHead title="Activity" action="See all" onAction={onSeeActivity} />
-          <View style={styles.list}>
-            {activity.length === 0 ? (
-              <View style={styles.empty}>
-                <Text style={styles.emptyTitle}>No recent activity</Text>
-                <Text style={styles.emptyBody}>Fills and risk events land here.</Text>
-              </View>
-            ) : (
-              activity.map((row, index) => (
-                <View key={row.id}>
-                  {index > 0 ? <View style={styles.hairline} /> : null}
-                  <View style={styles.row}>
-                    <View style={styles.rowMain}>
-                      <Text style={styles.rowTitle}>{row.title}</Text>
-                      <Text style={styles.rowDetail}>{row.detail}</Text>
-                    </View>
-                    <StatusPill status={row.status} />
-                  </View>
-                </View>
-              ))
-            )}
+        {loading && isEmpty ? (
+          <View style={styles.loading}>
+            <ActivityIndicator size="large" color={INDIGO} />
+            <Text style={styles.loadingText}>Loading live data…</Text>
           </View>
-            </>
-          )}
-        </ScrollView>
-      </View>
+        ) : loadError && isEmpty ? (
+          <View style={styles.loading}>
+            <Text style={styles.emptyTitle}>Couldn't load dashboard</Text>
+            <Text style={styles.loadingText}>{loadError}</Text>
+            {onRefresh ? (
+              <PillButton label="Try again" variant="secondary" onPress={onRefresh} />
+            ) : null}
+          </View>
+        ) : (
+          <>
+            <SectionHead title="Positions" action={positions.length > 0 ? `${positions.length}` : ""} onAction={undefined} />
+            <View style={styles.list}>
+              {positions.length === 0 ? (
+                <EmptyState
+                  icon="wallet-outline"
+                  title="No open positions"
+                  body="Fund your wallet to start trading."
+                />
+              ) : (
+                positions.map((row, index) => (
+                  <View key={`${row.symbol}-${index}`}>
+                    {index > 0 ? <View style={styles.hairline} /> : null}
+                    <View style={styles.row}>
+                      <View
+                        style={[styles.coin, { backgroundColor: coinColor(row.symbol) }]}
+                      >
+                        <Text style={styles.coinText}>{row.symbol.slice(0, 1)}</Text>
+                      </View>
+                      <View style={styles.rowMain}>
+                        <Text style={styles.rowTitle}>
+                          {coinName(row.symbol)}{" "}
+                          <Text style={styles.rowDetail}>{row.symbol}</Text>
+                        </Text>
+                        <Text style={styles.rowDetail}>{row.mark}</Text>
+                      </View>
+                      <View style={styles.rowRight}>
+                        <Text style={styles.rowAmount}>{row.size}</Text>
+                        <Text
+                          style={[
+                            styles.rowPnl,
+                            row.pnlUp ? styles.up : styles.down,
+                          ]}
+                        >
+                          {row.pnl}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+
+            <SectionHead title="Copying" action="Manage" onAction={onManageCopies} />
+            <View style={styles.list}>
+              {copies.length === 0 ? (
+                <EmptyState
+                  icon="people-outline"
+                  title="Not copying anyone"
+                  body="Pick a trader to start."
+                />
+              ) : (
+                copies.map((row, index) => (
+                  <View key={row.handle}>
+                    {index > 0 ? <View style={styles.hairline} /> : null}
+                    <View style={styles.row}>
+                      <View style={[styles.coin, { backgroundColor: INDIGO_SOFT }]}>
+                        <Text style={[styles.coinText, { color: INDIGO }]}>
+                          {row.handle.slice(0, 1).toUpperCase()}
+                        </Text>
+                      </View>
+                      <View style={styles.rowMain}>
+                        <Text style={styles.rowTitle}>{row.handle}</Text>
+                        <Text style={styles.rowDetail}>{row.allocation} aUSD</Text>
+                      </View>
+                      <StatusPill status={row.status} />
+                    </View>
+                  </View>
+                ))
+              )}
+              {copies.length > 0 ? (
+                <>
+                  <View style={styles.hairline} />
+                  <Pressable
+                    accessibilityLabel="Pause all copying"
+                    accessibilityRole="button"
+                    hitSlop={8}
+                    onPress={() => setKillOpen(true)}
+                    style={styles.pauseAll}
+                  >
+                    <Ionicons name="pause" size={14} color={DOWN} />
+                    <Text style={styles.pauseAllLabel}>Pause all</Text>
+                  </Pressable>
+                </>
+              ) : null}
+            </View>
+
+            <SectionHead title="Activity" action="See all" onAction={onSeeActivity} />
+            <View style={styles.list}>
+              {activity.length === 0 ? (
+                <EmptyState
+                  icon="pulse-outline"
+                  title="No recent activity"
+                  body="Fills and risk events land here."
+                />
+              ) : (
+                activity.slice(0, 5).map((row, index) => (
+                  <View key={row.id}>
+                    {index > 0 ? <View style={styles.hairline} /> : null}
+                    <View style={styles.row}>
+                      <View style={styles.rowMain}>
+                        <Text style={styles.rowTitle}>{row.title}</Text>
+                        <Text style={styles.rowDetail}>{row.detail}</Text>
+                      </View>
+                      <StatusPill status={row.status} />
+                    </View>
+                  </View>
+                ))
+              )}
+            </View>
+          </>
+        )}
+      </ScrollView>
 
       <Modal
         animationType="slide"
@@ -317,233 +371,207 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
             Open copy orders are cancelled and no new copies are placed until
             you resume. Manual positions stay untouched.
           </Text>
-          <Pressable
-            accessibilityRole="button"
+          <PillButton
+            label="Pause everything"
+            variant="danger"
             onPress={() => {
               setKillOpen(false);
               onKillSwitch?.();
             }}
-            style={({ pressed }) => [
-              styles.killConfirm,
-              pressed ? styles.pressed : null,
-            ]}
-          >
-            <Text style={styles.killConfirmLabel}>Pause everything</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
+          />
+          <PillButton
+            label="Keep running"
+            variant="ghost"
             onPress={() => setKillOpen(false)}
-            style={({ pressed }) => [
-              styles.keepRunning,
-              pressed ? styles.pressed : null,
-            ]}
-          >
-            <Text style={styles.keepRunningLabel}>Keep running</Text>
-          </Pressable>
+          />
         </View>
       </Modal>
     </View>
   );
 }
 
-function SectionHead({
-  title,
-  action,
-  onAction,
-}: {
-  title: string;
-  action: string;
-  onAction?: () => void;
-}) {
-  return (
-    <View style={styles.sectionHead}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      <Pressable
-        accessibilityRole="button"
-        hitSlop={8}
-        onPress={() => onAction?.()}
-      >
-        <Text style={styles.sectionAction}>{action}</Text>
-      </Pressable>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  backdrop: {
-    backgroundColor: "rgba(0, 0, 0, 0.6)",
-    flex: 1,
+  screen: { backgroundColor: BG, flex: 1 },
+  header: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 8,
   },
-  balance: {
-    color: INK,
-    fontSize: 34,
-    fontWeight: "800",
-    letterSpacing: -0.5,
-    lineHeight: 41,
-    textAlign: "center",
-    fontVariant: ["tabular-nums"],
+  headerTitle: { color: INK, fontSize: 26, fontWeight: "700", lineHeight: 32 },
+  bell: { padding: 4, position: "relative" },
+  badge: {
+    alignItems: "center",
+    backgroundColor: INDIGO,
+    borderRadius: RADIUS.pill,
+    justifyContent: "center",
+    minHeight: 18,
+    minWidth: 18,
+    paddingHorizontal: 4,
+    position: "absolute",
+    right: 0,
+    top: 0,
   },
-  balanceCaption: {
+  badgeLabel: { color: PAPER, fontSize: 11, fontWeight: "700", lineHeight: 14 },
+  scroll: { gap: 16, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 8 },
+  hero: {
+    alignItems: "center",
+    backgroundColor: CARD,
+    borderRadius: RADIUS.card,
+    gap: 6,
+    paddingVertical: 24,
+    ...SHADOW_SOFT,
+  },
+  heroCaption: {
     color: MUTED,
     fontSize: 11,
     fontWeight: "600",
     letterSpacing: 1,
     lineHeight: 14,
-    textAlign: "center",
   },
-  coin: {
+  heroValue: {
+    color: INK,
+    fontSize: 34,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+    letterSpacing: -0.5,
+    lineHeight: 41,
+  },
+  heroRow: { alignItems: "center", flexDirection: "row", gap: 10 },
+  pnlPill: {
     alignItems: "center",
-    borderRadius: 9999,
-    height: 46,
+    borderRadius: RADIUS.pill,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  pnlLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
+  heroAvailable: { color: SECONDARY, fontSize: 13, lineHeight: 19 },
+  heroUpdated: { color: MUTED, fontSize: 11, lineHeight: 14 },
+  actions: { flexDirection: "row", gap: 8 },
+  action: {
+    alignItems: "center",
+    backgroundColor: CARD_SOFT,
+    borderRadius: RADIUS.card,
+    flex: 1,
+    gap: 6,
+    paddingVertical: 14,
+  },
+  actionIcon: {
+    alignItems: "center",
+    backgroundColor: PAPER,
+    borderRadius: RADIUS.pill,
+    height: 44,
     justifyContent: "center",
-    width: 46,
+    width: 44,
   },
-  coinText: { color: "#FFFFFF", fontSize: 18, fontWeight: "800" },
-  connectBody: { color: "#3F6212", fontSize: 13, lineHeight: 18 },
-  connectButton: {
-    backgroundColor: "#111111",
-    borderRadius: 9999,
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+  actionLabel: { color: INK, fontSize: 12, fontWeight: "600", lineHeight: 15 },
+  riskBanner: {
+    alignItems: "center",
+    backgroundColor: AMBER_SOFT,
+    borderRadius: RADIUS.card,
+    flexDirection: "row",
+    gap: 8,
+    padding: 12,
   },
-  connectButtonLabel: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
+  riskText: { color: AMBER, flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 19 },
   connectCard: {
     alignItems: "center",
-    backgroundColor: "#D9F99D",
-    borderRadius: 20,
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
     flexDirection: "row",
     gap: 12,
     padding: 16,
   },
+  connectIcon: {
+    alignItems: "center",
+    backgroundColor: INDIGO_SOFT,
+    borderRadius: RADIUS.pill,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
   connectMain: { flex: 1, gap: 2 },
-  connectTitle: { color: "#1A2E05", fontSize: 15, fontWeight: "800", lineHeight: 20 },
-  counter: {
-    alignSelf: "flex-start",
-    backgroundColor: CARD_SOFT,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+  connectTitle: { color: INK, fontSize: 15, fontWeight: "700", lineHeight: 20 },
+  connectBody: { color: SECONDARY, fontSize: 13, lineHeight: 18 },
+  connectButton: {
+    backgroundColor: INDIGO,
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
   },
-  counterLabel: { color: SECONDARY, fontSize: 11, fontWeight: "600" },
-  down: { color: DOWN },
-  empty: { gap: 4, padding: 8 },
-  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19 },
-  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22 },
-  hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
-  handle: {
-    alignSelf: "center",
-    backgroundColor: "#3A4456",
-    borderRadius: 9999,
-    height: 4,
-    marginBottom: 8,
-    width: 40,
-  },
-  keepRunning: {
-    alignItems: "center",
-    backgroundColor: CARD_SOFT,
-    borderRadius: 16,
-    justifyContent: "center",
-    minHeight: 56,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    width: "100%",
-  },
-  keepRunningLabel: {
-    color: INK,
-    fontSize: 15,
-    fontWeight: "600",
-    lineHeight: 20,
-  },
-  killConfirm: {
-    alignItems: "center",
-    backgroundColor: "#E11D48",
-    borderRadius: 16,
-    justifyContent: "center",
-    minHeight: 56,
-    paddingHorizontal: 24,
-    paddingVertical: 16,
-    width: "100%",
-  },
-  killConfirmLabel: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "600",
-    lineHeight: 20,
-  },
-  list: {
-    backgroundColor: SHEET,
-    borderColor: BORDER,
-    borderRadius: 20,
-    borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
+  connectButtonLabel: { color: PAPER, fontSize: 13, fontWeight: "700" },
   loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
   loadingText: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
-  pauseAll: { alignItems: "center", paddingVertical: 14 },
-  pauseAllLabel: { color: DOWN, fontSize: 14, fontWeight: "600" },
+  empty: { alignItems: "center", gap: 4, paddingVertical: 20 },
+  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22 },
+  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
   pressed: { opacity: 0.85 },
-  retry: {
-    alignItems: "center",
-    backgroundColor: CARD,
-    borderRadius: 9999,
-    marginTop: 8,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  retryLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
-  riskBanner: {
-    backgroundColor: "rgba(251, 191, 36, 0.12)",
-    borderColor: "rgba(251, 191, 36, 0.35)",
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-  },
-  riskText: { color: AMBER, fontSize: 13, fontWeight: "600", lineHeight: 19, textAlign: "center" },
   row: {
     alignItems: "center",
     flexDirection: "row",
     gap: 12,
     paddingVertical: 12,
   },
-  rowDetail: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
-  rowMain: { flex: 1, gap: 3 },
+  rowMain: { flex: 1, gap: 2 },
   rowRight: { alignItems: "flex-end", gap: 4 },
   rowTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 14, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 6 },
-  sectionAction: { color: TEAL, fontSize: 13, fontWeight: "500", lineHeight: 18 },
-  sectionHead: {
-    alignItems: "baseline",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  sectionTitle: { color: INK, fontSize: 16, fontWeight: "700", lineHeight: 24 },
-  sectionTitleSolo: {
+  rowDetail: { color: MUTED, fontSize: 12, lineHeight: 16 },
+  rowAmount: {
     color: INK,
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
-    lineHeight: 24,
-    marginTop: 8,
+    fontVariant: ["tabular-nums"],
+    lineHeight: 20,
   },
-  seeMore: {
-    alignSelf: "center",
-    backgroundColor: CARD_SOFT,
-    borderRadius: 10,
+  rowPnl: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
+  up: { color: UP },
+  down: { color: DOWN },
+  coin: {
+    alignItems: "center",
+    borderRadius: RADIUS.pill,
+    height: 44,
+    justifyContent: "center",
+    width: 44,
+  },
+  coinText: { color: PAPER, fontSize: 17, fontWeight: "800" },
+  list: {
+    backgroundColor: SHEET,
+    borderColor: BORDER,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 6,
   },
-  seeMoreLabel: { color: SECONDARY, fontSize: 12, fontWeight: "500" },
-  sheet: {
-    backgroundColor: SHEET,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    flex: 1,
-    overflow: "hidden",
-    paddingTop: 18,
+  pauseAll: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: 6,
+    justifyContent: "center",
+    paddingVertical: 14,
   },
-  sheetBody: { color: SECONDARY, fontSize: 14, lineHeight: 21 },
+  pauseAllLabel: { color: DOWN, fontSize: 14, fontWeight: "600" },
+  statusPill: {
+    alignSelf: "flex-start",
+    borderRadius: RADIUS.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  statusPillLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
+  backdrop: { backgroundColor: "rgba(0, 0, 0, 0.6)", flex: 1 },
+  handle: {
+    alignSelf: "center",
+    backgroundColor: BORDER,
+    borderRadius: RADIUS.pill,
+    height: 4,
+    marginBottom: 8,
+    width: 40,
+  },
   sheetModal: {
     backgroundColor: CARD,
     borderTopLeftRadius: 28,
@@ -554,57 +582,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
   },
   sheetTitle: { color: INK, fontSize: 19, fontWeight: "700", lineHeight: 26 },
-  statusPill: {
-    alignSelf: "flex-start",
-    borderRadius: 9999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-  },
-  statusPillLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  up: { color: UP },
-  updateCard: {
-    alignItems: "center",
-    backgroundColor: CARD,
-    borderRadius: 18,
-    flexDirection: "row",
-    gap: 12,
-    padding: 14,
-  },
-  updateDetail: { color: MUTED, fontSize: 12, lineHeight: 17 },
-  updateIcon: {
-    alignItems: "center",
-    backgroundColor: CARD_SOFT,
-    borderRadius: 9999,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
-  updateTitle: { color: INK, fontSize: 15, fontWeight: "700", lineHeight: 20 },
-  walletBalance: {
-    color: INK,
-    fontSize: 16,
-    fontWeight: "700",
-    fontVariant: ["tabular-nums"],
-    lineHeight: 20,
-  },
-  walletChange: { fontSize: 12, fontWeight: "500", lineHeight: 15 },
-  walletFiat: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
-  walletList: { paddingHorizontal: 4 },
-  walletCaption: {
-    color: MUTED,
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 16,
-    textAlign: "center",
-  },
-  walletName: { color: INK, fontSize: 16, fontWeight: "700", lineHeight: 21 },
-  walletRow: {
-    alignItems: "center",
-    flexDirection: "row",
-    gap: 12,
-    paddingVertical: 14,
-  },
-  walletSymbol: { color: SECONDARY, fontSize: 14, fontWeight: "500" },
+  sheetBody: { color: SECONDARY, fontSize: 14, lineHeight: 21 },
 });
 
 export default DashboardScreen;
