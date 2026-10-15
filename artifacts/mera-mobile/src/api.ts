@@ -379,11 +379,53 @@ function linkMessageText(args: {
   );
 }
 
+/** Ensures the caller's users row exists. Fresh anonymous identities have
+ * none, and /users/link-challenge FK-requires one. Creates a provisional
+ * handle on first use; the user can rename it in Account. */
+async function ensureProfileRow(): Promise<void> {
+  try {
+    await getMe();
+    return;
+  } catch (error) {
+    if (
+      !(error instanceof ApiError) ||
+      (error.status !== 404 && error.code !== "not_found")
+    ) {
+      throw error;
+    }
+  }
+  const { getRandomBytes } = await import("expo-crypto");
+  const { bytesToHex } = await import("viem");
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const suffix = bytesToHex(getRandomBytes(3)).slice(2, 8);
+    try {
+      await authedFetch("/users/me", {
+        method: "PUT",
+        body: { handle: `trader_${suffix}` },
+      });
+      return;
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.code === "conflict" &&
+        attempt < 2
+      ) {
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+
 async function linkWallet(
   address: string,
   signMessage: (message: string) => Promise<string>,
 ): Promise<void> {
   const session = await ensureSession();
+  // /users/link-challenge FK-requires a users row, which fresh anonymous
+  // identities don't have yet. Ensure it (provisional handle, user can
+  // rename in Account) before requesting the challenge.
+  await ensureProfileRow();
   const challenge = await authedFetch<{ nonce: string; expiry: number }>(
     "/users/link-challenge",
   );
