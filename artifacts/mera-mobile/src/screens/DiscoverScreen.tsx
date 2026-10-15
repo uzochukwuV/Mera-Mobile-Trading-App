@@ -9,7 +9,6 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { TopFilterBar } from "./TabChrome";
 import { tintForName } from "./coinMeta";
 import {
   BG,
@@ -21,7 +20,6 @@ import {
   PAPER,
   RADIUS,
   SECONDARY,
-  SHEET,
   UP,
 } from "./homeTheme";
 import type { DiscoverProps } from "./types";
@@ -44,9 +42,15 @@ export function DiscoverScreen(props: DiscoverProps): ReactElement {
 
   return (
     <View style={styles.screen}>
-      <TopFilterBar />
-      <View style={styles.sheet}>
-        <ScrollView
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Traders</Text>
+        {leaders.length > 0 ? (
+          <View style={styles.count}>
+            <Text style={styles.countLabel}>{leaders.length}</Text>
+          </View>
+        ) : null}
+      </View>
+      <ScrollView
           contentContainerStyle={styles.scroll}
           refreshControl={
             onRefresh ? (
@@ -58,7 +62,6 @@ export function DiscoverScreen(props: DiscoverProps): ReactElement {
             ) : undefined
           }
         >
-          <Text style={styles.title}>Traders</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -162,7 +165,6 @@ export function DiscoverScreen(props: DiscoverProps): ReactElement {
           </View>
           )}
         </ScrollView>
-      </View>
     </View>
   );
 }
@@ -223,22 +225,26 @@ const styles = StyleSheet.create({
   rowRight: { alignItems: "flex-end", gap: 2 },
   screen: { backgroundColor: BG, flex: 1 },
   scroll: { gap: 12, paddingBottom: 28, paddingTop: 6 },
-  sheet: {
-    backgroundColor: SHEET,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    flex: 1,
-    overflow: "hidden",
-    paddingTop: 12,
-  },
-  title: {
-    color: INK,
-    fontSize: 26,
-    fontWeight: "700",
-    letterSpacing: -0.4,
-    lineHeight: 32,
+  header: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
     paddingHorizontal: 20,
+    paddingTop: 8,
   },
+  headerTitle: { color: INK, fontSize: 26, fontWeight: "700", lineHeight: 32 },
+  count: {
+    alignItems: "center",
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 28,
+    minWidth: 28,
+    paddingHorizontal: 8,
+  },
+  countLabel: { color: SECONDARY, fontSize: 13, fontWeight: "700" },
   up: { color: UP },
   winRate: { color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 19 },
 });

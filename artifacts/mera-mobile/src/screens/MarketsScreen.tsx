@@ -11,7 +11,6 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ApiError, getMarketsCached, toMarketRow } from "../api";
-import { TopFilterBar } from "./TabChrome";
 import { coinColor, coinName } from "./coinMeta";
 import {
   BG,
@@ -24,7 +23,6 @@ import {
   PAPER,
   RADIUS,
   SECONDARY,
-  SHEET,
   TEAL,
   UP,
 } from "./homeTheme";
@@ -38,7 +36,7 @@ function formatChange(changePct: number): string {
 
 export function MarketsScreen(props: MarketsProps = {}): ReactElement {
   const { markets: marketsOverride, heldSymbols, search = "", refreshToken = 0, onSearchChange, onSelectMarket } = props;
-  const [scope, setScope] = useState<Scope>("mine");
+  const [scope, setScope] = useState<Scope>("all");
   const [searchOpen, setSearchOpen] = useState(false);
   const [sortDesc, setSortDesc] = useState(true);
   const [remote, setRemote] = useState<MarketRow[] | null>(
@@ -90,14 +88,16 @@ export function MarketsScreen(props: MarketsProps = {}): ReactElement {
 
   return (
     <View style={styles.screen}>
-      <TopFilterBar
-        onSearch={() => setSearchOpen((open) => !open)}
-        onStocks={() => setScope("all")}
-        onMoreMarkets={() => setScope("all")}
-      />
-      <View style={styles.sheet}>
-        <ScrollView
-          contentContainerStyle={styles.scroll}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Markets</Text>
+        {visible.length > 0 ? (
+          <View style={styles.count}>
+            <Text style={styles.countLabel}>{visible.length}</Text>
+          </View>
+        ) : null}
+      </View>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -277,7 +277,6 @@ export function MarketsScreen(props: MarketsProps = {}): ReactElement {
             )}
           </View>
         </ScrollView>
-      </View>
     </View>
   );
 }
@@ -302,6 +301,26 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 6,
   },
+  count: {
+    alignItems: "center",
+    backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    justifyContent: "center",
+    minHeight: 28,
+    minWidth: 28,
+    paddingHorizontal: 8,
+  },
+  countLabel: { color: SECONDARY, fontSize: 13, fontWeight: "700" },
+  header: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 8,
+  },
+  headerTitle: { color: INK, fontSize: 26, fontWeight: "700", lineHeight: 32 },
   coin: {
     alignItems: "center",
     borderRadius: RADIUS.pill,
@@ -367,14 +386,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
-  },
-  sheet: {
-    backgroundColor: SHEET,
-    borderTopLeftRadius: RADIUS.sheet,
-    borderTopRightRadius: RADIUS.sheet,
-    flex: 1,
-    overflow: "hidden",
-    paddingTop: 12,
   },
   symbol: { color: SECONDARY, fontSize: 14, fontWeight: "500" },
   up: { color: UP },
