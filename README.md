@@ -1,5 +1,10 @@
 # Pera — Mobile Trading on Monad
 
+> **To try the app, download the latest APK from the Actions tab on
+> GitHub: Actions → Build Android APK → latest successful run →
+> Artifacts (`mera-mobile-android-<sha>`). Install it on your Android
+> device and sign in with a passkey.**
+
 A mobile-first trading venue on **Monad Testnet**: an Expo app
 (`artifacts/mera-mobile`) powered by a live trading backend
 (`artifacts/perpl-arena`). Users authenticate with a **Mera passkey**,
