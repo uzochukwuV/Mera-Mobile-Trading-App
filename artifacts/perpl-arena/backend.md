@@ -5,7 +5,7 @@ what the API/worker already do and what the mobile app needs next. Verified
 working live: `GET /markets`, `GET /markets/:id/candles`, auth middleware,
 wallet-link flow, enroll proxy structure, manual-intent queue.
 
-Base URL (deployed): `https://cushy-pavement-untreated.ngrok-free.dev`
+Base URL (deployed): `https://01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app`
 
 ## Landed (2026-10-13 API update — app wired)
 

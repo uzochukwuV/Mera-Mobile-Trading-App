@@ -10,7 +10,7 @@ import {
 // (dashboard, trading, copy, …) arrive with Phase 1 (Supabase anon JWT).
 
 const DEFAULT_API_URL =
-  "https://cushy-pavement-untreated.ngrok-free.dev";
+  "https://01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app";
 
 const apiBaseUrl: string =
   (Constants.expoConfig?.extra?.perplApiUrl as string | undefined) ??
