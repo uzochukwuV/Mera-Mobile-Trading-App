@@ -49,6 +49,8 @@ export type OnboardingProps = {
 export type ConnectPerplProps = {
   address: string;
   busy?: boolean;
+  /** Why this screen was opened (e.g. the ticket had no trade-scoped key). */
+  reason?: string | null;
   error?: { code?: string; message: string } | null;
   onEnrollNew?: () => void;
   onImportKey?: (input: { apiKey: string; privateKey: string }) => void;

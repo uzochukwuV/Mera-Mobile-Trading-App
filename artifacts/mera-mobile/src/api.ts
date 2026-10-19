@@ -1,8 +1,8 @@
 import Constants from "expo-constants";
 import type { MarketRow } from "./screens/types";
 import {
-  clearSession,
   ensureSession,
+  expireAccessToken,
   isBackendConfigured,
 } from "./session";
 
@@ -215,10 +215,17 @@ async function authedFetch<T>(
     clearTimeout(timer);
   }
   if (res.status === 401) {
-    // Do not auto re-signup here: a fresh anonymous identity would
-    // orphan the wallet binding. Surface it; refresh keeps identity.
-    await clearSession();
-    throw new ApiError("unauthorized", "Session expired — pull to refresh");
+    // Never drop the session here. A token that merely expired mid-flight
+    // is refreshed on the next call; clearing it would force a fresh
+    // anonymous signup and orphan every row owned by the current identity
+    // (trading keys, copy settings, equity history). Mark it stale so the
+    // next request rotates it, and let the user retry.
+    await expireAccessToken();
+    throw new ApiError(
+      "unauthorized",
+      "Session expired — try again, or sign out and back in if it keeps happening",
+      401,
+    );
   }
   if (!res.ok) {
     let code = `http_${res.status}`;
@@ -470,6 +477,9 @@ type PerplAccount = {
   label: string | null;
   status: string;
   connected_at: string | null;
+  // Imported keys have no connected_at (the import route does not set
+  // it), so the UI dates them from when the row was created instead.
+  created_at?: string | null;
 };
 
 async function getAccounts(): Promise<PerplAccount[]> {

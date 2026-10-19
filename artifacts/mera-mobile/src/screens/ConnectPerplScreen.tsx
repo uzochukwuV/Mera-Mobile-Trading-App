@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ReactElement, useState } from "react";
-import { BG, BORDER, CARD, CARD_SOFT, DOWN, DOWN_SOFT, FONT, INDIGO_SOFT, INK, MONO, MUTED, ON_ACCENT, RADIUS, SECONDARY, SHEET, TEAL } from "./homeTheme";
+import { BG, BORDER, CARD, CARD_SOFT, DOWN, DOWN_SOFT, FONT, INDIGO_SOFT, INK, MONO, MUTED, PAPER, RADIUS, SECONDARY, SHEET, TEAL } from "./homeTheme";
 import { ConnectPerplProps } from "./types";
 
 function truncate(address: string): string {
@@ -13,6 +13,7 @@ export function ConnectPerplScreen(props: ConnectPerplProps): ReactElement {
   const {
     address,
     busy = false,
+    reason = null,
     error = null,
     onEnrollNew,
     onImportKey,
@@ -45,6 +46,12 @@ export function ConnectPerplScreen(props: ConnectPerplProps): ReactElement {
           Enroll a trading key for this wallet. One passkey signature — the key
           itself is generated on this device.
         </Text>
+
+        {reason ? (
+          <View style={styles.reason} accessibilityLiveRegion="polite">
+            <Text style={styles.reasonLabel}>{reason}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <Text style={styles.caption}>WALLET</Text>
@@ -237,7 +244,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  primaryLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 16, fontWeight: "400", lineHeight: 20 },
+  primaryLabel: { fontFamily: FONT, color: PAPER, fontSize: 16, fontWeight: "400", lineHeight: 20 },
+  reason: {
+    backgroundColor: INDIGO_SOFT,
+    borderRadius: RADIUS.card,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  reasonLabel: { color: INK, fontFamily: FONT, fontSize: 13, lineHeight: 19 },
   retry: { alignSelf: "flex-start", paddingVertical: 4 },
   retryLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400" },
   screen: { backgroundColor: BG, flex: 1 },
@@ -260,7 +274,7 @@ const styles = StyleSheet.create({
   },
   stepActive: { backgroundColor: INK },
   stepLabel: { fontFamily: FONT, color: MUTED, fontSize: 12, fontWeight: "400" },
-  stepLabelActive: { color: ON_ACCENT },
+  stepLabelActive: { color: PAPER },
   steps: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   subtitle: { fontFamily: FONT, color: SECONDARY, fontSize: 15, lineHeight: 22 },
   title: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", letterSpacing: -0.4, lineHeight: 32 },

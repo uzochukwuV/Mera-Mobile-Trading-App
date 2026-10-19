@@ -146,6 +146,19 @@ function truncate(address: string): string {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
 }
 
+/**
+ * Turns a key-save failure into something the user can act on.
+ *
+ * A 500 from /accounts/import or /accounts/enroll means nothing was
+ * persisted, and the raw "Internal server error" reads like a bad key.
+ */
+function connectFailureMessage(error: unknown): string {
+  if (error instanceof ApiError && error.status === 500) {
+    return "The server couldn't save this key. Try again in a moment — if it keeps failing, pull to refresh Home to finish wallet sync, then retry.";
+  }
+  return describeError(error);
+}
+
 function formatConnectedAt(iso: string | null): string | undefined {
   if (iso === null) return undefined;
   const at = Date.parse(iso);
@@ -195,6 +208,9 @@ function App() {
   }>({ state: "unknown", hasTradeKey: false, keyCount: 0 });
   const [connectBusy, setConnectBusy] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  // Why Connect was opened (no trade key, read-only key, unreadable keys).
+  // Showing it beats silently bouncing the user out of the ticket.
+  const [connectReason, setConnectReason] = useState<string | null>(null);
   const [perplAccounts, setPerplAccounts] = useState<
     { id: string; label: string; connectedAt: string | null }[]
   >([]);
@@ -331,7 +347,9 @@ function App() {
         active.map((a) => ({
           id: a.id,
           label: a.label ?? `Key ${a.id.slice(0, 6)}`,
-          connectedAt: a.connected_at,
+          // Imported keys never get connected_at; date them from creation
+          // so Account does not look "not connected" while it is.
+          connectedAt: a.connected_at ?? a.created_at ?? null,
         })),
       );
     } catch {
@@ -469,6 +487,7 @@ function App() {
       });
     };
     const succeed = async (): Promise<void> => {
+      setConnectReason(null);
       await loadPerpl();
       await loadDashboard(address, false);
       setTour({ tab: "dashboard", stack: [] });
@@ -487,7 +506,7 @@ function App() {
           await succeed();
           return;
         } catch (retryCaught) {
-          setConnectError(describeError(retryCaught));
+          setConnectError(connectFailureMessage(retryCaught));
           return;
         }
       }
@@ -503,7 +522,7 @@ function App() {
         );
         return;
       }
-      setConnectError(describeError(caught));
+      setConnectError(connectFailureMessage(caught));
     } finally {
       setConnectBusy(false);
     }
@@ -528,11 +547,12 @@ function App() {
         scopeMask: 3,
         label: "Perpl Arena",
       });
+      setConnectReason(null);
       await loadPerpl();
       await loadDashboard(address, false);
       setTour({ tab: "dashboard", stack: [] });
     } catch (caught) {
-      setConnectError(describeError(caught));
+      setConnectError(connectFailureMessage(caught));
     } finally {
       setConnectBusy(false);
     }
@@ -639,6 +659,7 @@ function App() {
     setLinkError(null);
     setPerpl({ state: "unknown", hasTradeKey: false, keyCount: 0 });
     setConnectError(null);
+    setConnectReason(null);
     setMeHandle(null);
     setHandleError(null);
   }
@@ -861,6 +882,19 @@ function App() {
     }
   }
 
+  // Names the reason the trade-key gate fired. `unknown` means the key
+  // list itself could not be read for this session, which is what an
+  // orphaned/expired identity looks like from the client.
+  const noTradeKeyReason = (): string => {
+    if (perpl.state === "unknown") {
+      return "We couldn't read this session's trading keys. Reconnect to retry with a trade-scoped key.";
+    }
+    if (perpl.state === "connected") {
+      return "This session has a read-only Perpl key. Connect a trade-scoped key to place orders.";
+    }
+    return "No Perpl trading key is linked to this session yet. Connect one to place orders.";
+  };
+
   // S11: follow (required) then PUT copy settings. No trade key → S3.
   async function handleStartCopy(): Promise<void> {
     if (!selectedLeaderId) return;
@@ -870,7 +904,7 @@ function App() {
       return;
     }
     if (!perpl.hasTradeKey) {
-      openConnect();
+      openConnect(noTradeKeyReason());
       return;
     }
     setCopyBusy(true);
@@ -886,7 +920,9 @@ function App() {
       push("copies");
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === "no_trade_key") {
-        openConnect();
+        openConnect(
+          "The server has no trade-scoped key for this session. Connect one to keep copying.",
+        );
         return;
       }
       setCopyError(describeError(caught));
@@ -947,7 +983,7 @@ function App() {
       return;
     }
     if (!perpl.hasTradeKey) {
-      openConnect();
+      openConnect(noTradeKeyReason());
       return;
     }
     setTicketBusy(true);
@@ -977,7 +1013,9 @@ function App() {
       await loadDashboard(currentAddress(), true);
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === "no_trade_key") {
-        openConnect();
+        openConnect(
+          "The server has no trade-scoped key for this session. Connect one to place orders.",
+        );
         return;
       }
       setTicketError(describeError(caught));
@@ -1092,7 +1130,9 @@ function App() {
       await loadTournaments();
     } catch (caught) {
       if (caught instanceof ApiError && caught.code === "no_account") {
-        openConnect();
+        openConnect(
+          "Joining a tournament needs a Perpl trading key. Connect one to enter.",
+        );
         return;
       }
       setTournamentsError(describeError(caught));
@@ -1339,14 +1379,15 @@ function App() {
     setTour({ tab: "dashboard", stack: [] });
   }, []);
 
-  // Deferred connect entry points (Home banner, Account row): login
-  // first, connect later. Without a wallet, route back to onboarding.
-  const openConnect = useCallback((): void => {
+  // Deferred connect entry points (Home banner, Account row, trade gate):
+  // login first, connect later. Without a wallet, route back to onboarding.
+  const openConnect = useCallback((reason?: string): void => {
     if (accountRef.current?.status !== "unlocked") {
       setTour(null);
       return;
     }
     setConnectError(null);
+    setConnectReason(reason ?? null);
     push("connect");
   }, [push]);
 
@@ -1563,6 +1604,7 @@ function App() {
             <ConnectPerplScreen
               address={currentAddress() ?? ""}
               busy={connectBusy}
+              reason={connectReason}
               error={
                 connectError === null ? null : { message: connectError }
               }

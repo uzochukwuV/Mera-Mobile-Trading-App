@@ -1,7 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { ReactElement, useState } from "react";
-import { BG, BORDER, CARD, CARD_SOFT, DOWN, DOWN_SOFT, FONT, INK, MONO, MUTED, ON_ACCENT, RADIUS, SECONDARY } from "./homeTheme";
+import { BG, BORDER, CARD, CARD_SOFT, DOWN, DOWN_SOFT, FONT, INK, MONO, MUTED, PAPER, RADIUS, SECONDARY } from "./homeTheme";
 import { describeError, revealMnemonic } from "../wallet";
 import { ExportProps } from "./types";
 
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  primaryLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 16, fontWeight: "400", lineHeight: 20 },
+  primaryLabel: { fontFamily: FONT, color: PAPER, fontSize: 16, fontWeight: "400", lineHeight: 20 },
   screen: { backgroundColor: BG, flex: 1 },
   scroll: { gap: 16, padding: 20, paddingBottom: 32 },
   secondary: {

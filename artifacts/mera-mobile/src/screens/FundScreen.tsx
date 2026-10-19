@@ -1,7 +1,7 @@
 import { ReactElement } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BG, BORDER, CARD, DOWN, FONT, INDIGO_SOFT, INK, MUTED, ON_ACCENT, RADIUS, SECONDARY, TEAL, UP } from "./homeTheme";
+import { BG, BORDER, CARD, DOWN, FONT, INDIGO_SOFT, INK, MUTED, PAPER, RADIUS, SECONDARY, TEAL, UP } from "./homeTheme";
 import { FundProps } from "./types";
 
 export function FundScreen(props: FundProps = {}): ReactElement {
@@ -170,7 +170,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  primaryLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 16, fontWeight: "400", lineHeight: 20 },
+  primaryLabel: { fontFamily: FONT, color: PAPER, fontSize: 16, fontWeight: "400", lineHeight: 20 },
   screen: { backgroundColor: BG, flex: 1 },
   scroll: { gap: 16, padding: 20, paddingBottom: 32 },
   secondary: {

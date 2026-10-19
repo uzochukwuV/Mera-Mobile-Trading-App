@@ -1,7 +1,7 @@
 import { ReactElement } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { CARD, CARD_SOFT, DOWN, FONT, INK, ON_ACCENT, RADIUS, SECONDARY, TEAL } from "./homeTheme";
+import { CARD, CARD_SOFT, DOWN, FONT, INK, PAPER, RADIUS, SECONDARY, TEAL } from "./homeTheme";
 
 type TopFilterBarProps = {
   onMenu?: () => void;
@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 8,
   },
-  segmentActiveLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 14, fontWeight: "400" },
+  segmentActiveLabel: { fontFamily: FONT, color: PAPER, fontSize: 14, fontWeight: "400" },
   segmentChevron: {
     alignItems: "center",
     backgroundColor: CARD_SOFT,

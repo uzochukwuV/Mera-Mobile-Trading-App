@@ -23,7 +23,30 @@ type SupaSession = {
   refresh_token: string;
   expires_at_ms: number;
   user_id: string;
+  /** Set after a 401: rotate on the next call even if not near expiry. */
+  force_refresh?: boolean;
 };
+
+/**
+ * Raised when the stored identity can no longer be used.
+ *
+ * The anonymous Supabase user is the owner of every server-side row
+ * (trading keys, copy settings, equity snapshots). A new anonymous
+ * signup therefore is not a transparent retry: it is a different
+ * account, and the previous one's keys become invisible. So once a
+ * session exists, a failed refresh is surfaced instead of quietly
+ * minting a replacement identity.
+ */
+export class SessionExpiredError extends Error {
+  readonly code = "session_expired";
+
+  constructor(
+    message = "This device's session has expired. Sign out, sign back in with your passkey, then reconnect your trading key.",
+  ) {
+    super(message);
+    this.name = "SessionExpiredError";
+  }
+}
 
 function isBackendConfigured(): boolean {
   return SUPABASE_URL !== "" && SUPABASE_ANON_KEY !== "";
@@ -131,42 +154,105 @@ function parseSession(raw: string | null): SupaSession | null {
   }
 }
 
-/**
- * Returns a usable session, refreshing or anonymously signing in as
- * needed. Throws when the backend is not configured or unreachable.
- */
-async function ensureSession(): Promise<SupaSession> {
-  if (!isBackendConfigured()) {
-    throw new Error("Backend is not configured");
-  }
+// Bumped by clearSession so an in-flight refresh cannot write a session
+// back after an explicit sign-out.
+let sessionEpoch = 0;
+// One identity bootstrap at a time. Supabase refresh tokens are
+// single-use, so concurrent refreshes (Home, key list and realtime all
+// call this on launch) race: the loser is rejected, and it used to fall
+// through to a brand-new anonymous signup — silently moving the user to
+// an identity that owns none of their keys.
+let sessionInFlight: Promise<SupaSession> | null = null;
+
+async function loadOrCreateSession(epoch: number): Promise<SupaSession> {
   const stored = parseSession(await storeGet(SESSION_KEY));
-  if (stored && stored.expires_at_ms - Date.now() > REFRESH_MARGIN_MS) {
-    return stored;
-  }
-  if (stored?.refresh_token) {
+
+  if (stored !== null) {
+    const stale =
+      stored.force_refresh === true ||
+      stored.expires_at_ms - Date.now() <= REFRESH_MARGIN_MS;
+    // Still comfortably valid and not flagged: reuse it as-is.
+    if (!stale) return stored;
+
+    // Rotate the token, but never replace the identity: if rotation
+    // fails while the current access token still works, keep using it
+    // and retry on the next call.
     try {
       const data = (await supaFetch("/auth/v1/token?grant_type=refresh_token", {
         method: "POST",
         body: { refresh_token: stored.refresh_token },
       })) as Parameters<typeof toSession>[0];
       const session = toSession(data);
-      await storeSet(SESSION_KEY, JSON.stringify(session));
+      if (epoch === sessionEpoch) {
+        await storeSet(SESSION_KEY, JSON.stringify(session));
+      }
       return session;
-    } catch {
-      // Fall through to a fresh anonymous sign-in.
+    } catch (error) {
+      if (stored.expires_at_ms > Date.now()) return stored;
+      const detail =
+        error instanceof Error ? error.message : String(error);
+      throw new SessionExpiredError(
+        `This device's session expired and could not be renewed (${detail}). Sign out, sign back in with your passkey, then reconnect your trading key.`,
+      );
     }
   }
+
+  // No stored identity: first launch on this device, or right after an
+  // explicit sign-out. Creating one is correct here — there is nothing
+  // to preserve yet.
   const data = (await supaFetch("/auth/v1/signup", {
     method: "POST",
     body: {},
   })) as Parameters<typeof toSession>[0];
   const session = toSession(data);
-  await storeSet(SESSION_KEY, JSON.stringify(session));
+  if (epoch === sessionEpoch) {
+    await storeSet(SESSION_KEY, JSON.stringify(session));
+  }
   return session;
+}
+
+/**
+ * Returns a usable session, refreshing or (on first launch) creating
+ * the anonymous identity. Concurrent callers share one refresh.
+ * Throws when the backend is not configured, unreachable, or when the
+ * stored session expired — never by swapping in a new identity.
+ */
+async function ensureSession(): Promise<SupaSession> {
+  if (!isBackendConfigured()) {
+    throw new Error("Backend is not configured");
+  }
+  if (sessionInFlight !== null) return sessionInFlight;
+  const pending = loadOrCreateSession(sessionEpoch);
+  sessionInFlight = pending;
+  try {
+    return await pending;
+  } finally {
+    if (sessionInFlight === pending) sessionInFlight = null;
+  }
+}
+
+/**
+ * Marks the current access token as stale so the next call refreshes it.
+ * The refresh token — and therefore the user's identity — is kept:
+ * dropping the session would strand every server-side row (trading keys,
+ * copy settings, equity history) under an anonymous user the app can no
+ * longer reach.
+ */
+async function expireAccessToken(): Promise<void> {
+  const stored = parseSession(await storeGet(SESSION_KEY));
+  if (stored === null) return;
+  await storeSet(
+    SESSION_KEY,
+    JSON.stringify({ ...stored, force_refresh: true }),
+  );
 }
 
 /** Best-effort server sign-out, then drops the local session. */
 async function clearSession(): Promise<void> {
+  // Invalidate any refresh already in flight so it cannot write the old
+  // identity back after sign-out.
+  sessionEpoch += 1;
+  sessionInFlight = null;
   const stored = parseSession(await storeGet(SESSION_KEY));
   if (stored && isBackendConfigured()) {
     try {
@@ -181,5 +267,11 @@ async function clearSession(): Promise<void> {
   await storeDelete(SESSION_KEY);
 }
 
-export { clearSession, ensureSession, getSupabaseConfig, isBackendConfigured };
+export {
+  clearSession,
+  ensureSession,
+  expireAccessToken,
+  getSupabaseConfig,
+  isBackendConfigured,
+};
 export type { SupaSession };

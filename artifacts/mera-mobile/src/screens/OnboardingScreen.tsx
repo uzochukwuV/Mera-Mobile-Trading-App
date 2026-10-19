@@ -1,6 +1,6 @@
 import { ReactElement } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { BORDER, CARD, DOWN, DOWN_SOFT, FONT, INK, MONO, ON_ACCENT, PAPER, RADIUS, SECONDARY } from "./homeTheme";
+import { BORDER, CARD, DOWN, DOWN_SOFT, FONT, INK, MONO, PAPER, RADIUS, SECONDARY } from "./homeTheme";
 import { OnboardingProps } from "./types";
 
 // Simple white onboarding: app icon centered, two buttons pinned below.
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     width: "100%",
   },
   primaryLabel: {
-    color: ON_ACCENT,
+    color: PAPER,
     fontFamily: FONT,
     fontSize: 16,
     fontWeight: "400",

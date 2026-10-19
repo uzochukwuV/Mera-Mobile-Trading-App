@@ -76,7 +76,7 @@ export function AccountScreen(props: AccountProps = {}): ReactElement {
                 {address}
               </Text>
               {connectedAt ? (
-                <Text style={styles.caption}>Key connected {connectedAt}</Text>
+                <Text style={styles.caption}>Key added {connectedAt}</Text>
               ) : null}
             </View>
             <Pressable
