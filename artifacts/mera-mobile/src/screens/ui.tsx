@@ -1,12 +1,6 @@
-import type { ReactElement, ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import { DOWN, INK, INDIGO, ON_ACCENT, RADIUS } from "./homeTheme";
+import { ReactElement, ReactNode } from "react";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { DOWN, FONT, INDIGO, INK, ON_ACCENT, RADIUS } from "./homeTheme";
 
 type PillButtonProps = {
   label: string;
@@ -93,9 +87,9 @@ const styles = StyleSheet.create({
   pressed: { opacity: 0.85 },
   inactive: { opacity: 0.5 },
   content: { alignItems: "center", flexDirection: "row", gap: 8 },
-  label: { fontSize: 16, fontWeight: "600", lineHeight: 22 },
+  label: { fontFamily: FONT, fontSize: 16, fontWeight: "400", lineHeight: 22 },
   labelOnAccent: { color: ON_ACCENT },
   labelInk: { color: INK },
   labelDanger: { color: DOWN },
-  labelGhost: { color: INDIGO },
+  labelGhost: { color: INK },
 });

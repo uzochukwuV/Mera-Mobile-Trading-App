@@ -27,11 +27,15 @@ const COIN_NAMES: Record<string, string> = {
   PUMP: "Pump",
 };
 
+// A generated avatar knows nothing about the name it stands for, so it
+// has nothing to say with a hue — and the system spends its one accent
+// on actions. The hash still picks a tone, which is enough to tell two
+// rows apart without inventing a colour for each trader.
 const AVATAR_TINTS = [
-  { bg: "#EAF3C4", fg: "#4D7C0F" },
-  { bg: "#E0E9FF", fg: "#1D4ED8" },
-  { bg: "#FFE8D6", fg: "#B45309" },
-  { bg: "#E8E4FF", fg: "#6D28D9" },
+  { bg: "#F4F2F0", fg: "#0C0A08" },
+  { bg: "#EAE7E4", fg: "#0C0A08" },
+  { bg: "#E3DFDB", fg: "#0C0A08" },
+  { bg: "#F8F6F4", fg: "#0C0A08" },
 ] as const;
 
 function coinColor(symbol: string): string {

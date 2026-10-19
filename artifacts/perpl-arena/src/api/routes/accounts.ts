@@ -12,6 +12,7 @@ import * as ed from '@noble/ed25519';
 import { pool } from '../../lib/db.js';
 import { encrypt } from '../../lib/crypto.js';
 import { ApiError } from '../../lib/errors.js';
+import { privateKeyFromHex } from '../../perpl/rest.js';
 import {
   APP_ORIGIN,
   MAX_BUILDER_FEE_PER_100K,
@@ -31,6 +32,35 @@ export const accountsRouter = Router();
 accountsRouter.use(requireAuth);
 
 const uuidSchema = z.string().uuid();
+
+export function enrollmentError(status: number, details = ''): ApiError {
+  if (status === 404) {
+    return new ApiError(
+      404,
+      'no_account',
+      'No on-chain Perpl account exists for this wallet',
+    );
+  }
+  if (status === 409) {
+    return new ApiError(
+      409,
+      'key_taken',
+      'This public key is already registered with Perpl',
+    );
+  }
+  if (status === 423) {
+    return new ApiError(
+      423,
+      'key_limit',
+      'Perpl API key limit reached; revoke an existing key before retrying',
+    );
+  }
+  return new ApiError(
+    502,
+    'enrollment_failed',
+    `Perpl enroll failed: HTTP ${status} ${details.slice(0, 200)}`,
+  );
+}
 
 // POST /accounts/enroll/payload — proxies the EIP-712 payload
 // request so the enrollment Origin is this server's (which
@@ -163,11 +193,7 @@ accountsRouter.post(
     });
     if (!upstream.ok) {
       const text = await upstream.text().catch(() => '');
-      throw new ApiError(
-        502,
-        'enrollment_failed',
-        `Perpl enroll failed: HTTP ${upstream.status} ${text.slice(0, 200)}`,
-      );
+      throw enrollmentError(upstream.status, text);
     }
     const enrolled = (await upstream.json()) as {
       api_key: string;
@@ -179,9 +205,8 @@ accountsRouter.post(
 
     // Verify the private key matches the enrolled public key
     // before persisting anything.
-    const derived = await ed.getPublicKeyAsync(
-      Buffer.from(body.privateKey.replace(/^0x/, ''), 'hex'),
-    );
+    const privateKey = privateKeyFromHex(body.privateKey);
+    const derived = await ed.getPublicKeyAsync(privateKey);
     void derived;
 
     const { rows } = await pool.query(
@@ -204,7 +229,7 @@ accountsRouter.post(
         userId,
         body.address,
         encrypt(enrolled.api_key),
-        encrypt(body.privateKey),
+        encrypt(privateKey.toString('hex')),
         enrolled.scope_mask,
         body.label,
         enrolled.expires_at ?? 0,
@@ -243,6 +268,7 @@ accountsRouter.post(
       builderId?: number;
       maxBuilderFeePer100k?: number;
     };
+    const privateKey = privateKeyFromHex(body.privateKey);
 
     const { rows } = await pool.query(
       `insert into perpl_accounts
@@ -263,7 +289,7 @@ accountsRouter.post(
         userId,
         body.address,
         encrypt(body.apiKey),
-        encrypt(body.privateKey),
+        encrypt(privateKey.toString('hex')),
         body.scopeMask,
         body.label,
         body.builderId ?? null,

@@ -42,12 +42,55 @@ Perpl worker ────┘
      `PERPL_*` values for mainnet (`app.perpl.xyz`, chain `143`).
    - `PERPL_BUILDER_ID` — issued by Perpl out of band; `0` disables fees.
    - `APP_ORIGIN` — must be whitelisted by Perpl for key enrollment.
+   - `DRY_RUN=true` on the worker to prevent real orders while testing.
 3. **Install & run.**
    ```bash
    pnpm install
    pnpm dev          # API on :8080
    pnpm dev:worker   # trading brain (separate shell)
+   pnpm dev:tunnel   # API with a public ngrok URL (requires NGROK_AUTHTOKEN)
    ```
+   Development commands load environment variables from `.env`. Production
+   start commands load `.env` if present, and also work with variables injected
+   by the deployment platform.
+   Set `NGROK_AUTHTOKEN` in `.env` before starting the tunnel. Optionally set
+   `NGROK_DOMAIN` to use a reserved ngrok domain; for account enrollment, set
+   `APP_ORIGIN` to that public origin and ensure it is whitelisted by Perpl.
+   The API currently sends permissive `Access-Control-Allow-Origin: *` headers
+   for browser previews; do not use cookie-based authentication with this policy.
+   Keep `APP_ORIGIN` set to the origin Perpl has whitelisted; CORS does not
+   change the origin sent to Perpl.
+
+   For production, run `pnpm start` and `pnpm start:worker` as separate
+   long-running processes against the same database. Configure both services
+   with the required environment variables in the platform's secret manager.
+   The worker needs no public port. The API alone does not maintain live
+   prices, wallet balances, positions, or order processing.
+
+### Deploy API and worker together with Docker Compose
+
+The API and worker run as separate containers built from the same Dockerfile.
+From this directory:
+
+```bash
+Copy-Item .env.example .env   # PowerShell; edit .env and fill in credentials
+docker compose up --build -d
+docker compose ps
+docker compose logs -f api worker
+```
+
+Compose publishes only the API port. The worker has no public port and is
+restarted if it exits. Both containers use the same `.env` and database.
+`DRY_RUN` defaults to `true` in the example config and Compose setup; set it to
+`false` explicitly only when you intend the worker to submit live orders.
+Keep `.env` out of source control and Docker build contexts. Stop the stack
+with `docker compose down`; persisted state remains in Supabase Postgres.
+
+`docker compose up --build -d` is for a Docker host that supports Compose. For
+managed platforms that accept only a Dockerfile per service, deploy this same
+image twice: API command `node dist/index.js` with the configured HTTP port
+exposed, and background worker command `node dist/worker.js` with no port.
+Inject the same environment variables into both services.
 
 ## Key enrollment (mobile flow)
 
@@ -67,6 +110,17 @@ directly against Perpl testnet from your own machine (useful where
 the backend host is geo-blocked from the enrollment endpoint with
 HTTP 451). It prints an import command for `/accounts/import` at
 the end. Testnet wallets only.
+
+Enrollment errors preserve the Perpl cases the app needs to route:
+`404 no_account`, `409 key_taken`, and `423 key_limit`; other upstream
+failures return `502 enrollment_failed`.
+
+`GET /meta/account-creation` returns the current chain, exchange,
+collateral-token, and minimum account-open/deposit values from Perpl's
+public context endpoint. `GET /dashboard` includes the latest mirrored
+`balance`, `locked`, and `walletAt`; those remain `null` until the worker
+receives a wallet snapshot for an active enrolled key. `PUT /users/me`
+creates or updates the authenticated user's handle.
 
 ## Copy engine
 
@@ -151,6 +205,16 @@ Mobile realtime: subscribe with the Supabase client to
 - `pnpm test:e2e` — 20 checks against the running API + live
   Supabase (creates and deletes its own auth users).
 - `pnpm build` / `pnpm start`, `pnpm start:worker` for production.
+
+Supabase deployment checklist:
+- Enable anonymous sign-ins in **Authentication → Sign In / Providers**.
+- Apply `sql/schema.sql`. Its `authenticated` policies scope private Realtime
+  rows to `auth.uid()`; `price_cache` and public rankings intentionally allow
+  authenticated reads.
+- Verify `positions`, `copy_orders`, `manual_orders`, `notifications`,
+  `risk_events`, `leaderboard_snapshots`, and `price_cache` are in the
+  `supabase_realtime` publication. `positions`, `copy_orders`, and
+  `manual_orders` use `REPLICA IDENTITY FULL` for update/delete payloads.
 
 Set `DRY_RUN=true` on the worker to simulate copying without
 submitting orders; simulated rows are flagged `dry_run` and the

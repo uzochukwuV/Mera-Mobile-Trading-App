@@ -20,6 +20,9 @@ const {
 } = await import('./src/perpl/scaling.js');
 const { tournamentScore } = await import('./src/engine/tournaments.js');
 const { encrypt, decrypt } = await import('./src/lib/crypto.js');
+const { enrollmentError } = await import('./src/api/routes/accounts.js');
+const { privateKeyFromHex } = await import('./src/perpl/rest.js');
+const ed = await import('@noble/ed25519');
 
 let failures = 0;
 const check = (name: string, cond: boolean, extra?: unknown) => {
@@ -131,6 +134,45 @@ check('tournamentScore', tournamentScore(100, 0.25) === 80);
 // ---- crypto round trip ------------------------------------------------------
 const secret = 'super-secret-api-key-token';
 check('encrypt/decrypt round trip', decrypt(encrypt(secret)) === secret);
+const testPrivateKeyHex = 'ab'.repeat(32);
+const testPrivateKey = privateKeyFromHex(`0x${testPrivateKeyHex}`);
+check(
+  'private key decoder accepts 0x-prefixed 32-byte keys',
+  testPrivateKey.length === 32 &&
+    testPrivateKey.toString('hex') === testPrivateKeyHex,
+);
+const testSignature = await ed.signAsync(
+  new Uint8Array([1, 2, 3]),
+  testPrivateKey,
+);
+check('decoded private key signs with noble ed25519', testSignature.length === 64);
+let invalidPrivateKeyRejected = false;
+try {
+  privateKeyFromHex('0x' + 'ab'.repeat(31));
+} catch {
+  invalidPrivateKeyRejected = true;
+}
+check('private key decoder rejects invalid lengths', invalidPrivateKeyRejected);
+check(
+  'enrollment no-account error mapping',
+  enrollmentError(404).status === 404 &&
+    enrollmentError(404).code === 'no_account',
+);
+check(
+  'enrollment key-taken error mapping',
+  enrollmentError(409).status === 409 &&
+    enrollmentError(409).code === 'key_taken',
+);
+check(
+  'enrollment key-limit error mapping',
+  enrollmentError(423).status === 423 &&
+    enrollmentError(423).code === 'key_limit',
+);
+check(
+  'other enrollment failures remain gateway errors',
+  enrollmentError(500, 'upstream').status === 502 &&
+    enrollmentError(500, 'upstream').code === 'enrollment_failed',
+);
 
 // ---- app boot (no DB: health reports db:false) -------------------------------
 const { createApp } = await import('./src/api/server.js');
@@ -144,8 +186,92 @@ const health = await fetch(`http://127.0.0.1:${port}/health`).then((r) =>
 check('health endpoint responds', health.db === false, health);
 const notFound = await fetch(`http://127.0.0.1:${port}/nope`);
 check('404 envelope', notFound.status === 404);
+check(
+  'CORS allows public web clients',
+  notFound.headers.get('access-control-allow-origin') === '*',
+);
+const preflight = await fetch(`http://127.0.0.1:${port}/dashboard`, {
+  method: 'OPTIONS',
+  headers: {
+    Origin: 'https://example.com',
+    'Access-Control-Request-Method': 'GET',
+    'Access-Control-Request-Headers': 'ngrok-skip-browser-warning',
+  },
+});
+check(
+  'CORS preflight responds without authentication',
+  preflight.status === 204,
+);
+check(
+  'CORS allows ngrok browser warning header',
+  preflight.headers
+    .get('access-control-allow-headers')
+    ?.toLowerCase()
+    .includes('ngrok-skip-browser-warning') ?? false,
+);
+const assetLinks = [
+  '/.well-known/assetlinks.json',
+  '/.well-known/assetslinks.json',
+];
+for (const path of assetLinks) {
+  const response = await fetch(`http://127.0.0.1:${port}${path}`);
+  const body = await response.json();
+  check(
+    `public asset links endpoint ${path}`,
+    response.status === 200 &&
+      response.headers.get('content-type')?.includes('application/json') ===
+        true &&
+      body[0]?.target?.package_name === 'com.pera.mobile' &&
+      body[0]?.target?.sha256_cert_fingerprints?.length === 1 &&
+      body[0]?.target?.sha256_cert_fingerprints[0] ===
+        'FA:C6:17:45:DC:09:03:78:6F:B9:ED:E6:2A:96:2B:39:9F:73:48:F0:BB:6F:89:9B:83:32:66:75:91:03:3B:9C',
+    body,
+  );
+}
 const unauthorized = await fetch(`http://127.0.0.1:${port}/dashboard`);
 check('dashboard requires auth', unauthorized.status === 401);
+const originalFetch = globalThis.fetch;
+globalThis.fetch = async (input, init) => {
+  if (String(input).endsWith('/v1/pub/context')) {
+    return new Response(
+      JSON.stringify({
+        chain: { chain_id: 10143, name: 'Test Network' },
+        instances: [
+          {
+            id: 1,
+            address: '0x1111111111111111111111111111111111111111',
+            collateral_token_id: 2,
+            min_account_open_amount: '100000000',
+            min_deposit_amount: '10000000',
+          },
+        ],
+        tokens: [
+          {
+            id: 2,
+            address: '0x2222222222222222222222222222222222222222',
+            symbol: 'AUSD',
+            name: 'Test USD',
+            decimals: 6,
+          },
+        ],
+        markets: [],
+      }),
+      { status: 200, headers: { 'Content-Type': 'application/json' } },
+    );
+  }
+  return originalFetch(input, init);
+};
+const accountMetadata = await fetch(
+  `http://127.0.0.1:${port}/meta/account-creation`,
+).then((response) => response.json());
+globalThis.fetch = originalFetch;
+check(
+  'account-creation metadata derives collateral amounts',
+  accountMetadata.minAccountOpenAmount.amount === 100 &&
+    accountMetadata.minDepositAmount.amount === 10 &&
+    accountMetadata.collateralToken.symbol === 'AUSD',
+  accountMetadata,
+);
 server.close();
 
 if (failures > 0) {

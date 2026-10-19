@@ -14,11 +14,29 @@ dashboardRouter.get(
   asyncRoute(async (req: Request, res: Response) => {
     const { userId } = req as AuthedRequest;
 
-    const [{ rows: equityRows }, { rows: positions }, { rows: settings }] =
+    const [
+      { rows: equityRows },
+      { rows: walletRows },
+      { rows: positions },
+      { rows: settings },
+    ] =
       await Promise.all([
         pool.query<{ equity: number; at: string }>(
           `select equity, at from equity_snapshots
             where user_id = $1 order by at desc limit 1`,
+          [userId],
+        ),
+        pool.query<{
+          balance: number | null;
+          locked: number | null;
+          wallet_at: string | null;
+        }>(
+          `select sum(wallet_balance_usd) as balance,
+                  sum(wallet_locked_usd) as locked,
+                  max(wallet_updated_at) as wallet_at
+             from perpl_accounts
+            where user_id = $1 and status = 'active'
+              and wallet_balance_usd is not null`,
           [userId],
         ),
         pool.query(
@@ -42,24 +60,65 @@ dashboardRouter.get(
         ),
       ]);
 
-    const [{ rows: pnlRows }, { rows: notifications }] = await Promise.all([
-      pool.query<{ realized: string }>(
-        `select coalesce(sum(realized_usd), 0) as realized
-           from copy_pnl_events
-          where user_id = $1 and created_at >= date_trunc('day', now())`,
-        [userId],
-      ),
-      pool.query(
-        `select * from notifications
-          where user_id = $1 and read = false
-          order by created_at desc limit 20`,
-        [userId],
-      ),
-    ]);
+    // The Home hero's 1H/4H/1D windows are tails of one real series, so
+    // the whole day comes back downsampled to fifteen-minute buckets.
+    // Fifteen is the bucket that keeps a day under a hundred points —
+    // dense enough that the curve bends where the balance actually did,
+    // sparse enough that it is not a re-plot of the raw ~1/min rows.
+    const [{ rows: series }, { rows: pnlRows }, { rows: notifications }] =
+      await Promise.all([
+        pool.query<{ t: string | Date; equity: number }>(
+          `select to_timestamp(floor(extract(epoch from at) / 900) * 900) as t,
+                  avg(equity) as equity
+             from equity_snapshots
+            where user_id = $1 and at >= now() - interval '25 hours'
+            group by 1
+            order by 1`,
+          [userId],
+        ),
+        pool.query<{ realized: string }>(
+          `select coalesce(sum(realized_usd), 0) as realized
+             from copy_pnl_events
+            where user_id = $1 and created_at >= date_trunc('day', now())`,
+          [userId],
+        ),
+        pool.query(
+          `select * from notifications
+            where user_id = $1 and read = false
+            order by created_at desc limit 20`,
+          [userId],
+        ),
+      ]);
+
+    // Oldest → newest, already bucketed. The final point is the latest
+    // raw reading rather than its bucket average, so the line ends on
+    // the same number and at the same moment the card prints above it.
+    const points = series.map((row) => ({
+      t: new Date(row.t).toISOString(),
+      e: Number(row.equity),
+    }));
+    const latest = equityRows[0];
+    if (
+      points.length > 0 &&
+      latest?.at &&
+      Number.isFinite(Number(latest.equity))
+    ) {
+      points[points.length - 1] = {
+        t: new Date(latest.at).toISOString(),
+        e: Number(latest.equity),
+      };
+    }
 
     res.json({
       equity: equityRows[0]?.equity ?? null,
       equityAt: equityRows[0]?.at ?? null,
+      // Empty until the worker has recorded a balance for this account;
+      // the app draws the flat "only the last reading" line in that case
+      // rather than invent one.
+      equitySeries: points,
+      balance: walletRows[0]?.balance ?? null,
+      locked: walletRows[0]?.locked ?? null,
+      walletAt: walletRows[0]?.wallet_at ?? null,
       positions,
       activeCopySettings: settings,
       realizedPnlToday: Number(pnlRows[0]?.realized ?? '0'),

@@ -83,6 +83,8 @@ export type WithdrawProps = {
 export type DashboardProps = {
   equity?: string;
   changePct?: number;
+  /** Recorded balance readings, oldest → newest (epoch ms + aUSD). */
+  equitySeries?: { t: number; e: number }[];
   lastUpdatedSecondsAgo?: number;
   unread?: number;
   available?: string;

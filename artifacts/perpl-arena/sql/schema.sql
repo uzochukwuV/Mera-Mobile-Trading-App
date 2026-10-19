@@ -45,6 +45,9 @@ create table if not exists public.perpl_accounts (
   builder_id integer,                          -- set when enrolled bound to a builder code
   max_builder_fee_per_100k integer not null default 0,  -- user-signed ceiling
   account_id bigint,                           -- on-chain exchange account id (from wallet snapshot)
+  wallet_balance_usd double precision,
+  wallet_locked_usd double precision,
+  wallet_updated_at timestamptz,
   status text not null default 'active' check (status in ('active', 'revoked', 'error')),
   last_error text,
   connected_at timestamptz,
@@ -56,6 +59,10 @@ create table if not exists public.perpl_accounts (
 create unique index if not exists perpl_accounts_user_address_label_uidx
   on public.perpl_accounts (user_id, lower(address), label);
 create index if not exists perpl_accounts_user_idx on public.perpl_accounts (user_id);
+alter table public.perpl_accounts
+  add column if not exists wallet_balance_usd double precision,
+  add column if not exists wallet_locked_usd double precision,
+  add column if not exists wallet_updated_at timestamptz;
 
 -- ------------------------------------------------------------- leaders
 -- A leader is a platform user who opted into a public profile. The worker
@@ -412,6 +419,9 @@ alter publication supabase_realtime add table public.notifications;
 alter publication supabase_realtime add table public.leaderboard_snapshots;
 alter publication supabase_realtime add table public.price_cache;
 alter publication supabase_realtime add table public.risk_events;
+alter table public.positions replica identity full;
+alter table public.copy_orders replica identity full;
+alter table public.manual_orders replica identity full;
 
 -- --------------------------------------------------------------- grants
 grant usage on schema public to anon, authenticated, service_role;

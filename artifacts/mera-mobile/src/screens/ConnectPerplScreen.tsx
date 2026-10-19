@@ -1,30 +1,8 @@
-import { useState, type ReactElement } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BG,
-  BORDER,
-  CARD,
-  CARD_SOFT,
-  DOWN,
-  DOWN_SOFT,
-  INDIGO_SOFT,
-  INK,
-  MUTED,
-  ON_ACCENT,
-  RADIUS,
-  SECONDARY,
-  SHEET,
-  TEAL,
-} from "./homeTheme";
-import type { ConnectPerplProps } from "./types";
+import { ReactElement, useState } from "react";
+import { BG, BORDER, CARD, CARD_SOFT, DOWN, DOWN_SOFT, FONT, INDIGO_SOFT, INK, MONO, MUTED, ON_ACCENT, RADIUS, SECONDARY, SHEET, TEAL } from "./homeTheme";
+import { ConnectPerplProps } from "./types";
 
 function truncate(address: string): string {
   if (address.length <= 12) return address;
@@ -204,9 +182,9 @@ export function ConnectPerplScreen(props: ConnectPerplProps): ReactElement {
 }
 
 const styles = StyleSheet.create({
-  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
-  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  caption: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 1, lineHeight: 14 },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 4, paddingVertical: 4 },
+  backLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 15, fontWeight: "400", lineHeight: 20 },
+  caption: { fontFamily: FONT, color: MUTED, fontSize: 11, fontWeight: "400", letterSpacing: 1, lineHeight: 14 },
   card: {
     backgroundColor: CARD,
     borderColor: BORDER,
@@ -215,11 +193,11 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
   },
-  eipLabel: { color: TEAL, fontSize: 11, fontWeight: "700" },
+  eipLabel: { fontFamily: FONT, color: INK, fontSize: 11, fontWeight: "400" },
   eipTag: {
     backgroundColor: INDIGO_SOFT,
     borderRadius: RADIUS.pill,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
   },
   errorCard: {
@@ -228,26 +206,27 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
     borderWidth: 1,
     gap: 8,
-    padding: 14,
+    padding: 16,
   },
-  errorCode: { color: DOWN, fontFamily: "Menlo", fontSize: 12, lineHeight: 14 },
-  errorMessage: { color: SECONDARY, fontSize: 13, lineHeight: 19 },
-  fieldLabel: { color: SECONDARY, fontSize: 13, fontWeight: "600" },
-  hint: { color: MUTED, fontSize: 13, lineHeight: 19 },
+  errorCode: { color: DOWN, fontFamily: MONO, fontSize: 12, lineHeight: 14 },
+  errorMessage: { fontFamily: FONT, color: SECONDARY, fontSize: 13, lineHeight: 19 },
+  fieldLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 13, fontWeight: "400" },
+  hint: { fontFamily: FONT, color: MUTED, fontSize: 13, lineHeight: 19 },
   input: {
     backgroundColor: SHEET,
     borderColor: BORDER,
     borderRadius: RADIUS.input,
     borderWidth: 1,
     color: INK,
+    fontFamily: FONT,
     fontSize: 15,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  link: { alignItems: "center", paddingVertical: 6 },
-  linkLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
-  mono: { color: INK, flex: 1, fontFamily: "Menlo", fontSize: 13, lineHeight: 18 },
-  monoInput: { fontFamily: "Menlo" },
+  link: { alignItems: "center", paddingVertical: 8 },
+  linkLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400" },
+  mono: { color: INK, flex: 1, fontFamily: MONO, fontSize: 13, lineHeight: 18 },
+  monoInput: { fontFamily: MONO },
   pressed: { opacity: 0.6 },
   primary: {
     alignItems: "center",
@@ -258,11 +237,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  primaryLabel: { color: ON_ACCENT, fontSize: 16, fontWeight: "600", lineHeight: 20 },
+  primaryLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 16, fontWeight: "400", lineHeight: 20 },
   retry: { alignSelf: "flex-start", paddingVertical: 4 },
-  retryLabel: { color: INK, fontSize: 14, fontWeight: "600" },
+  retryLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400" },
   screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
+  scroll: { gap: 16, padding: 20, paddingBottom: 32 },
   secondary: {
     alignItems: "center",
     backgroundColor: CARD_SOFT,
@@ -270,21 +249,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 52,
     paddingHorizontal: 24,
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
-  secondaryLabel: { color: INK, fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  secondaryLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400", lineHeight: 20 },
   step: {
     backgroundColor: SHEET,
     borderRadius: RADIUS.pill,
     paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingVertical: 8,
   },
   stepActive: { backgroundColor: INK },
-  stepLabel: { color: MUTED, fontSize: 12, fontWeight: "600" },
+  stepLabel: { fontFamily: FONT, color: MUTED, fontSize: 12, fontWeight: "400" },
   stepLabelActive: { color: ON_ACCENT },
   steps: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  subtitle: { color: SECONDARY, fontSize: 15, lineHeight: 22 },
-  title: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
+  subtitle: { fontFamily: FONT, color: SECONDARY, fontSize: 15, lineHeight: 22 },
+  title: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", letterSpacing: -0.4, lineHeight: 32 },
   walletRow: { alignItems: "center", flexDirection: "row", gap: 12 },
 });
 

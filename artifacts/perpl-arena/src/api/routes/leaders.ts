@@ -9,6 +9,7 @@ import { ApiError } from '../../lib/errors.js';
 import {
   asyncRoute,
   requireAuth,
+  uuidParam,
   validateBody,
   validateQuery,
   type AuthedRequest,
@@ -119,6 +120,7 @@ leadersRouter.get(
 // GET /leaders/:id — profile with live positions and recent fills.
 leadersRouter.get(
   '/:id',
+  uuidParam('id', 'leader'),
   asyncRoute(async (req: Request, res: Response) => {
     const leaderId = req.params.id;
     const { rows } = await pool.query(
@@ -190,6 +192,7 @@ leadersRouter.put(
 // POST /leaders/:id/follow — follow a public leader.
 leadersRouter.post(
   '/:id/follow',
+  uuidParam('id', 'leader'),
   asyncRoute(async (req: Request, res: Response) => {
     const { userId } = req as AuthedRequest;
     const leaderId = req.params.id;
@@ -221,6 +224,7 @@ leadersRouter.post(
 // DELETE /leaders/:id/follow — unfollow.
 leadersRouter.delete(
   '/:id/follow',
+  uuidParam('id', 'leader'),
   asyncRoute(async (req: Request, res: Response) => {
     const { userId } = req as AuthedRequest;
     const leaderId = req.params.id;

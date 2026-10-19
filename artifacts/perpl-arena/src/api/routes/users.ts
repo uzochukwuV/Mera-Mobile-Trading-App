@@ -61,6 +61,40 @@ usersRouter.get(
   }),
 );
 
+// PUT /users/me — create or update the caller's public handle.
+usersRouter.put(
+  '/me',
+  validateBody(
+    z.object({
+      handle: z.string().trim().min(3).max(24).regex(/^[a-zA-Z0-9_]+$/),
+    }),
+  ),
+  asyncRoute(async (req: Request, res: Response) => {
+    const { userId } = req as AuthedRequest;
+    const { handle } = req.body as { handle: string };
+    try {
+      const { rows } = await pool.query(
+        `insert into public.users (id, handle)
+         values ($1, $2)
+         on conflict (id) do update set handle = excluded.handle
+         returning id, handle, wallet_address, created_at`,
+        [userId, handle],
+      );
+      res.json({ user: rows[0] });
+    } catch (error) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === '23505'
+      ) {
+        throw ApiError.conflict('Handle is already taken');
+      }
+      throw error;
+    }
+  }),
+);
+
 // POST /users/link-wallet — verify signature, consume challenge, bind.
 usersRouter.post(
   '/link-wallet',

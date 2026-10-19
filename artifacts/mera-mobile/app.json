@@ -10,7 +10,9 @@
     "ios": {
       "bundleIdentifier": "com.pera.mobile",
       "supportsTablet": false,
-      "associatedDomains": ["webcredentials:01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app"]
+      "associatedDomains": [
+        "webcredentials:01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app"
+      ]
     },
     "android": {
       "package": "com.pera.mobile"
@@ -24,7 +26,8 @@
         {
           "faceIDPermission": "Allow mera demo to unlock the account this device already signed in to."
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "rpId": "01a13ff4-99a1-7e33-97a5-4327175bff36-8080.eur-1.aiven.app",

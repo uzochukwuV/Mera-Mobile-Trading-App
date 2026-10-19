@@ -1,36 +1,78 @@
-import { useState, type ReactElement } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+// The ticket is a form, so it is built like one.
+//
+// ONE SURFACE, THREE QUESTIONS, IN THE ORDER YOU ASK THEM: which way,
+// how much, how hard. Everything else on the card is a reading that
+// answers back — notional, margin, fees — and the single action sits
+// outside the card in the accent, because a fill that means "commit"
+// should not have to compete with the fill of a chip.
+//
+// The direction is a segmented choice rather than two slabs of colour.
+// Long and short are the same size, the same weight and the same
+// distance from your thumb; the arrow and the word say which one you
+// are in, and no hue is spent implying that one of them is "up".
+
 import { Ionicons } from "@expo/vector-icons";
-import { coinColor } from "./coinMeta";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
+
 import {
-  BG,
+  AMBER_SOFT,
   BORDER,
   CARD,
   CARD_SOFT,
-  DOWN,
-  DOWN_SOFT,
+  FONT,
+  INDIGO,
   INK,
   MUTED,
+  ON_ACCENT,
   PAPER,
   RADIUS,
   SECONDARY,
-  SHADOW_SOFT,
-  UP,
-  UP_SOFT,
 } from "./homeTheme";
+import { LiquidToggle } from "./LiquidToggle";
+import { SlideConfirm } from "./SlideConfirm";
+import { ToastStack, useToasts } from "./ToastStack";
 import type { TradeTicketProps } from "./types";
 
-const LEVERAGE_PRESETS = [5, 10, 15, 20];
+// A ladder, not a fixed list: BTC on testnet caps near 6x, and the old
+// [5, 10, 15, 20] left a single 5X chip and no way to pick the actual
+// maximum. The ladder is filtered to what this market allows and the
+// cap is always appended, so the last chip is the real ceiling. When
+// more than four survive, the lowest are dropped — four is what fits a
+// row without shrinking the targets below a thumb.
+function leveragePresets(maxLeverage: number): number[] {
+  const cap = Math.floor(maxLeverage);
+  if (cap < 1) return [];
+  const ladder = [1, 2, 3, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100];
+  const picks = [...ladder.filter((preset) => preset < cap), cap];
+  while (picks.length > 4) picks.shift();
+  return picks;
+}
+
+const QUICK_FILLS = [
+  { label: "25%", share: 0.25 },
+  { label: "50%", share: 0.5 },
+  { label: "75%", share: 0.75 },
+  { label: "MAX", share: 1 },
+] as const;
 
 type MarginMode = "Market" | "Isolated";
-const MARGIN_MODES: MarginMode[] = ["Market", "Isolated"];
+
+function SummaryRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): ReactElement {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={styles.summaryValue}>{value}</Text>
+    </View>
+  );
+}
 
 export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
   const {
@@ -44,6 +86,7 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
     busy = false,
     error = null,
     notice = null,
+    onSideChange,
     onSizeChange,
     onLeverageChange,
     onSubmit,
@@ -51,13 +94,21 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
     onBack,
   } = props;
 
+  const { toasts, push, dismiss } = useToasts();
   const [marginMode, setMarginMode] = useState<MarginMode>("Market");
-  const visiblePresets = LEVERAGE_PRESETS.filter((p) => p <= maxLeverage);
+  const [focused, setFocused] = useState(false);
+
+  useEffect(() => {
+    if (notice) push({ title: notice, tone: "ok" });
+  }, [notice, push]);
+
   const effectiveLeverage = Math.min(leverage, maxLeverage);
+  const visiblePresets = leveragePresets(maxLeverage);
 
   const isLong = side === "long";
-  const sideLabel = isLong ? "LONG" : "SHORT";
-  const baseAsset = symbol.split("-")[0] ?? symbol;
+  const ticker = symbol.split("-")[0] ?? symbol;
+  const confirmTitle = busy ? "Submitting…" : isLong ? "Buy Long" : "Sell Short";
+
   // Live notional from size × mark; fees are quoted server-side, unknown here.
   const markNum = Number(mark.replace(/,/g, ""));
   const sizeNum = Number(size);
@@ -68,11 +119,24 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
     sizeNum > 0
       ? sizeNum * markNum
       : null;
-  const confirmTitle = busy
-    ? "Submitting…"
-    : isLong
-      ? "Buy Long"
-      : "Sell Short";
+  const margin =
+    tradeValue !== null && effectiveLeverage > 0
+      ? tradeValue / effectiveLeverage
+      : null;
+
+  // The size a full balance buys at this leverage, and the four shares of
+  // it the quick fills hand back. Same arithmetic a desk would do — and
+  // it is a maximum, so the label says Max.
+  const balanceNum = Number((balance ?? "").replace(/,/g, ""));
+  const maxSize =
+    Number.isFinite(balanceNum) && balanceNum > 0 && markNum > 0
+      ? (balanceNum * effectiveLeverage) / markNum
+      : null;
+
+  const usd = (value: number): string =>
+    `$${value.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
+  const formatSize = (value: number): string =>
+    String(Number(value.toFixed(6)));
 
   return (
     <View style={styles.screen}>
@@ -87,51 +151,118 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
           <Text style={styles.backLabel}>Back</Text>
         </Pressable>
 
-        <View style={styles.titleBlock}>
-          <View style={styles.titleRow}>
-            <View
-              style={[styles.coin, { backgroundColor: coinColor(symbol) }]}
-            >
-              <Text style={styles.coinText}>{symbol.slice(0, 1)}</Text>
-            </View>
-            <Text style={styles.title}>
-              {symbol} · {sideLabel}
-            </Text>
+        <View style={styles.headRow}>
+          <View style={styles.disc}>
+            <Text style={styles.discText}>{ticker.slice(0, 1)}</Text>
           </View>
-          <Text style={styles.price}>{mark}</Text>
+          <View style={styles.headMain}>
+            <Text style={styles.headTicker}>{ticker}-PERP</Text>
+            <Text style={styles.meta}>PERP · MARKET IOC</Text>
+          </View>
+          <View style={styles.headRight}>
+            <Text style={styles.headMark}>{mark}</Text>
+            <Text style={styles.meta}>MARK</Text>
+          </View>
         </View>
 
-        <View style={styles.ticket}>
-          <View style={styles.chips}>
-            {MARGIN_MODES.map((mode) => {
-              const active = marginMode === mode;
+        <View style={styles.card}>
+          {/* ── which way ─────────────────────────────────────── */}
+          <View style={styles.sideTrack}>
+            {(["long", "short"] as const).map((option) => {
+              const active = side === option;
               return (
                 <Pressable
-                  key={mode}
+                  key={option}
                   accessibilityRole="button"
                   accessibilityState={{ selected: active }}
-                  onPress={() => setMarginMode(mode)}
-                  style={[
-                    styles.chip,
-                    active ? styles.chipActive : null,
-                  ]}
+                  onPress={() => onSideChange?.(option)}
+                  style={[styles.sideSeg, active ? styles.sideSegOn : null]}
                 >
+                  <Ionicons
+                    name={option === "long" ? "arrow-up" : "arrow-down"}
+                    size={14}
+                    color={active ? PAPER : SECONDARY}
+                  />
                   <Text
-                    style={
-                      active ? styles.chipActiveLabel : styles.chipIdleLabel
-                    }
+                    style={[
+                      styles.sideLabel,
+                      active ? styles.sideLabelOn : null,
+                    ]}
                   >
-                    {mode}
+                    {option === "long" ? "Long" : "Short"}
                   </Text>
                 </Pressable>
               );
             })}
           </View>
 
-          <View style={styles.leverageBlock}>
-            <View style={styles.leverageHead}>
-              <Text style={styles.caption}>SELECT LEVERAGE</Text>
-              <Text style={styles.leverageReadout}>{effectiveLeverage}X</Text>
+          {/* ── how much ──────────────────────────────────────── */}
+          <View style={styles.field}>
+            <View style={styles.fieldHead}>
+              <Text style={styles.label}>AMOUNT</Text>
+              <Text style={styles.label}>{ticker}</Text>
+            </View>
+            <TextInput
+              accessibilityLabel="Amount to trade"
+              editable={!busy}
+              keyboardType="decimal-pad"
+              onBlur={() => setFocused(false)}
+              onChangeText={(value) => onSizeChange?.(value)}
+              onFocus={() => setFocused(true)}
+              placeholder="0"
+              placeholderTextColor={MUTED}
+              style={styles.amount}
+              value={size}
+            />
+            <View
+              style={[styles.fieldRule, focused ? styles.fieldRuleOn : null]}
+            />
+            <View style={styles.fieldFoot}>
+              <Text style={styles.hint}>
+                {tradeValue === null ? "— notional" : `${usd(tradeValue)} notional`}
+              </Text>
+              <Text style={styles.hint}>
+                {balance === undefined ? "— available" : `${balance} aUSD available`}
+              </Text>
+            </View>
+            <View style={styles.quickRow}>
+              {QUICK_FILLS.map((fill) => {
+                const disabled = maxSize === null || busy;
+                return (
+                  <Pressable
+                    key={fill.label}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Fill ${fill.label} of maximum size`}
+                    disabled={disabled}
+                    onPress={() => {
+                      if (maxSize === null) return;
+                      onSizeChange?.(formatSize(maxSize * fill.share));
+                    }}
+                    style={({ pressed }) => [
+                      styles.quick,
+                      disabled ? styles.quickDisabled : null,
+                      pressed ? styles.pressed : null,
+                    ]}
+                  >
+                    <Text style={styles.quickLabel}>{fill.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            {maxSize !== null ? (
+              <Text style={styles.hint}>
+                {`Max ~${formatSize(maxSize)} ${ticker} at ${effectiveLeverage}X`}
+              </Text>
+            ) : null}
+          </View>
+
+          <View style={styles.rule} />
+
+          {/* ── how hard ──────────────────────────────────────── */}
+          <View style={styles.block}>
+            <View style={styles.blockHead}>
+              <Text style={styles.label}>LEVERAGE</Text>
+              <Text style={styles.blockValue}>{effectiveLeverage}X</Text>
             </View>
             <View style={styles.presets}>
               {visiblePresets.map((preset) => {
@@ -160,239 +291,347 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
                 );
               })}
             </View>
-            <Text style={styles.balance}>Max {maxLeverage}X on this market</Text>
+            <Text style={styles.hint}>{`Max ${maxLeverage}X on this market`}</Text>
           </View>
 
-          <View style={styles.amountBlock}>
-            <Text style={styles.caption}>AMOUNT TO TRADE ({baseAsset})</Text>
-            <TextInput
-              accessibilityLabel="Amount to trade"
-              editable={!busy}
-              keyboardType="decimal-pad"
-              onChangeText={(value) => onSizeChange?.(value)}
-              placeholder="0.00"
-              placeholderTextColor={MUTED}
-              style={styles.input}
-              value={size}
-            />
-            <Text style={styles.balance}>
-              Available balance: {balance ?? "—"} aUSD
-            </Text>
-          </View>
+          <View style={styles.rule} />
 
-          <View style={styles.summary}>
-            <View style={styles.kvRow}>
-              <Text style={styles.kvLabel}>Trade value</Text>
-              <Text style={styles.kvValue}>
-                {tradeValue === null
-                  ? "--"
-                  : `$${tradeValue.toLocaleString("en-US", { maximumFractionDigits: 2 })}`}
+          <View style={styles.toggleRow}>
+            <View style={styles.toggleMain}>
+              <Text style={styles.label}>MARGIN</Text>
+              <Text style={styles.hint}>
+                {marginMode === "Isolated"
+                  ? "Isolated to this position"
+                  : "Shared across positions"}
               </Text>
             </View>
-            <View style={styles.kvRow}>
-              <Text style={styles.kvLabel}>Fees</Text>
-              <Text style={styles.kvValue}>--</Text>
+            <View style={styles.toggleWrap}>
+              <LiquidToggle
+                accessibilityLabel="Margin mode"
+                left="Market"
+                onChange={(isolated) =>
+                  setMarginMode(isolated ? "Isolated" : "Market")
+                }
+                right="Isolated"
+                value={marginMode === "Isolated"}
+              />
             </View>
           </View>
 
-          {error ? (
-            <View style={styles.errorCard}>
-              <Text style={styles.errorText}>{error.message}</Text>
-            </View>
-          ) : null}
-          {notice ? (
-            <View style={styles.noticeCard}>
-              <Text style={styles.noticeText}>{notice}</Text>
-            </View>
-          ) : null}
+          <View style={styles.rule} />
 
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={confirmTitle}
-            disabled={busy}
-            onPress={() => onSubmit?.()}
-            style={({ pressed }) => [
-              styles.confirm,
-              isLong ? styles.longBlock : styles.shortBlock,
-              busy || pressed ? styles.pressed : null,
-            ]}
-          >
-            <Text style={styles.confirmLabel}>{confirmTitle}</Text>
-          </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Dry run"
-            disabled={busy}
-            onPress={() => onDryRun?.()}
-            style={({ pressed }) => [
-              styles.dryRun,
-              busy || pressed ? styles.pressed : null,
-            ]}
-          >
-            <Text style={styles.dryRunLabel}>Dry run</Text>
-          </Pressable>
+          {/* ── the reading back ──────────────────────────────── */}
+          <View style={styles.summary}>
+            <SummaryRow
+              label="Trade value"
+              value={tradeValue === null ? "—" : usd(tradeValue)}
+            />
+            <SummaryRow
+              label="Margin (est.)"
+              value={margin === null ? "—" : usd(margin)}
+            />
+            <SummaryRow label="Fees" value="—" />
+          </View>
         </View>
 
+        {error ? (
+          <View style={styles.warn}>
+            <Ionicons name="alert-circle-outline" size={16} color={INK} />
+            <Text style={styles.warnText}>{error.message}</Text>
+          </View>
+        ) : null}
+
+        {/* The one place the accent is spent: the thing you commit. */}
+        <SlideConfirm
+          contrast={ON_ACCENT}
+          disabled={busy}
+          ink={INDIGO}
+          label={confirmTitle}
+          onConfirm={() => onSubmit?.()}
+        />
+        <Pressable
+          accessibilityLabel="Dry run"
+          accessibilityRole="button"
+          disabled={busy}
+          onPress={() => onDryRun?.()}
+          style={({ pressed }) => [
+            styles.dryRun,
+            busy || pressed ? styles.pressed : null,
+          ]}
+        >
+          <Text style={styles.dryRunLabel}>Dry run</Text>
+        </Pressable>
+
         <Text style={styles.lifecycle}>
-          Market IOC · Worker executes in ~1s · pending → filled
+          MARKET IOC · WORKER EXECUTES IN ~1S · PENDING → FILLED
         </Text>
       </ScrollView>
+      <ToastStack onDismiss={dismiss} toasts={toasts} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  amountBlock: { gap: 8 },
-  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
-  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  balance: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
-  caption: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 1, lineHeight: 14 },
-  chip: {
-    alignItems: "center",
-    borderRadius: RADIUS.pill,
-    flex: 1,
-    justifyContent: "center",
-    paddingVertical: 10,
-  },
-  chipActive: { backgroundColor: CARD, ...SHADOW_SOFT },
-  chipActiveLabel: { color: INK, fontSize: 13, fontWeight: "700", lineHeight: 18 },
-  chipIdleLabel: { color: MUTED, fontSize: 13, fontWeight: "600", lineHeight: 18 },
-  chips: {
-    backgroundColor: CARD_SOFT,
-    borderRadius: RADIUS.pill,
-    flexDirection: "row",
-    gap: 2,
-    padding: 4,
-  },
-  coin: {
-    alignItems: "center",
-    borderRadius: RADIUS.pill,
-    height: 44,
-    justifyContent: "center",
-    width: 44,
-  },
-  coinText: { color: PAPER, fontSize: 18, fontWeight: "800" },
-  confirm: {
-    alignItems: "center",
-    borderRadius: RADIUS.pill,
-    justifyContent: "center",
-    minHeight: 56,
-    width: "100%",
-  },
-  confirmLabel: { color: PAPER, fontSize: 16, fontWeight: "600", lineHeight: 20 },
-  dryRun: {
-    alignItems: "center",
-    backgroundColor: CARD_SOFT,
-    borderRadius: RADIUS.pill,
-    justifyContent: "center",
-    minHeight: 52,
-    width: "100%",
-  },
-  dryRunLabel: { color: INK, fontSize: 16, fontWeight: "600", lineHeight: 20 },
-  errorCard: {
-    backgroundColor: DOWN_SOFT,
-    borderColor: DOWN,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    padding: 12,
-  },
-  errorText: { color: DOWN, fontSize: 13, fontWeight: "500", lineHeight: 18 },
-  noticeCard: {
-    backgroundColor: UP_SOFT,
-    borderColor: UP,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    padding: 12,
-  },
-  noticeText: { color: UP, fontSize: 13, fontWeight: "600", lineHeight: 18 },
-  input: {    backgroundColor: BG,
-    borderColor: BORDER,
-    borderRadius: RADIUS.input,
-    borderWidth: 1,
+  amount: {
     color: INK,
-    fontSize: 20,
+    fontFamily: FONT,
+    fontSize: 36,
     fontVariant: ["tabular-nums"],
-    fontWeight: "700",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    fontWeight: "400",
+    letterSpacing: -0.8,
+    lineHeight: 44,
+    padding: 0,
   },
-  kvLabel: { color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 18 },
-  summary: {
-    backgroundColor: BG,
-    borderRadius: RADIUS.card,
-    gap: 8,
-    padding: 12,
-  },
-  kvRow: {
+  back: {
     alignItems: "center",
+    alignSelf: "flex-start",
     flexDirection: "row",
-    justifyContent: "space-between",
+    gap: 4,
+    paddingVertical: 4,
   },
-  kvValue: {
-    color: INK,
-    fontSize: 13,
-    fontWeight: "600",
-    fontVariant: ["tabular-nums"],
-    lineHeight: 18,
+  backLabel: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 15,
+    fontWeight: "400",
+    lineHeight: 20,
   },
-  leverageBlock: { gap: 8 },
-  leverageHead: {
+  block: { gap: 12 },
+  blockHead: {
     alignItems: "baseline",
     flexDirection: "row",
     justifyContent: "space-between",
   },
-  leverageReadout: {
+  blockValue: {
     color: INK,
-    fontSize: 22,
-    fontWeight: "800",
+    fontFamily: FONT,
+    fontSize: 20,
     fontVariant: ["tabular-nums"],
-    letterSpacing: -0.4,
-    lineHeight: 30,
+    fontWeight: "400",
+    letterSpacing: -0.2,
+    lineHeight: 26,
   },
-  lifecycle: {
-    color: MUTED,
-    fontSize: 11,
-    fontWeight: "500",
-    lineHeight: 14,
-    textAlign: "center",
-  },
-  longBlock: { backgroundColor: UP },
-  preset: {
-    alignItems: "center",
-    borderRadius: RADIUS.pill,
-    flex: 1,
-    justifyContent: "center",
-    paddingVertical: 10,
-  },
-  presetActive: { backgroundColor: INK },
-  presetActiveLabel: { color: PAPER, fontSize: 13, fontWeight: "700", fontVariant: ["tabular-nums"] },
-  presetIdle: { backgroundColor: CARD_SOFT },
-  presetIdleLabel: { color: SECONDARY, fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
-  presets: { flexDirection: "row", gap: 8 },
-  pressed: { opacity: 0.6 },
-  price: {
-    color: INK,
-    fontSize: 34,
-    fontWeight: "800",
-    fontVariant: ["tabular-nums"],
-    letterSpacing: -0.5,
-    lineHeight: 41,
-  },
-  screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
-  shortBlock: { backgroundColor: DOWN },
-  ticket: {
+  card: {
     backgroundColor: CARD,
     borderColor: BORDER,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    gap: 14,
+    gap: 20,
     padding: 16,
-    ...SHADOW_SOFT,
   },
-  title: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
-  titleBlock: { gap: 4 },
-  titleRow: { alignItems: "center", flexDirection: "row", gap: 10 },
+  disc: {
+    alignItems: "center",
+    backgroundColor: CARD_SOFT,
+    borderColor: BORDER,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
+  },
+  discText: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 15,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  dryRun: {
+    alignItems: "center",
+    backgroundColor: PAPER,
+    borderColor: BORDER,
+    borderRadius: RADIUS.pill,
+    borderWidth: 1,
+    height: 48,
+    justifyContent: "center",
+    width: "100%",
+  },
+  dryRunLabel: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 15,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  field: { gap: 8 },
+  fieldFoot: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+  },
+  fieldHead: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  fieldRule: {
+    backgroundColor: BORDER,
+    height: 1,
+  },
+  fieldRuleOn: { backgroundColor: INK },
+  headMain: { flex: 1, gap: 2 },
+  headMark: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 16,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  headRight: { alignItems: "flex-end", gap: 2 },
+  headRow: { alignItems: "center", flexDirection: "row", gap: 12 },
+  headTicker: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 16,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  hint: {
+    color: MUTED,
+    fontFamily: FONT,
+    fontSize: 12,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "400",
+    lineHeight: 16,
+  },
+  label: {
+    color: MUTED,
+    fontFamily: FONT,
+    fontSize: 10,
+    fontWeight: "400",
+    letterSpacing: 0.6,
+    lineHeight: 14,
+  },
+  lifecycle: {
+    color: MUTED,
+    fontFamily: FONT,
+    fontSize: 10,
+    fontWeight: "400",
+    letterSpacing: 0.6,
+    lineHeight: 14,
+    textAlign: "center",
+  },
+  meta: {
+    color: MUTED,
+    fontFamily: FONT,
+    fontSize: 10,
+    fontWeight: "400",
+    letterSpacing: 0.6,
+    lineHeight: 14,
+  },
+  preset: {
+    alignItems: "center",
+    borderRadius: RADIUS.pill,
+    flex: 1,
+    height: 40,
+    justifyContent: "center",
+  },
+  presetActive: { backgroundColor: INK },
+  presetActiveLabel: {
+    color: PAPER,
+    fontFamily: FONT,
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "400",
+    lineHeight: 18,
+  },
+  presetIdle: { backgroundColor: CARD_SOFT },
+  presetIdleLabel: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "400",
+    lineHeight: 18,
+  },
+  presets: { flexDirection: "row", gap: 8 },
+  pressed: { opacity: 0.7 },
+  quick: {
+    alignItems: "center",
+    backgroundColor: CARD_SOFT,
+    borderRadius: RADIUS.pill,
+    flex: 1,
+    height: 32,
+    justifyContent: "center",
+  },
+  quickDisabled: { opacity: 0.4 },
+  quickLabel: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 11,
+    fontWeight: "400",
+    letterSpacing: 0.4,
+    lineHeight: 16,
+  },
+  quickRow: { flexDirection: "row", gap: 8 },
+  rule: { backgroundColor: BORDER, height: StyleSheet.hairlineWidth },
+  screen: { backgroundColor: "transparent", flex: 1 },
+  scroll: { gap: 20, padding: 20, paddingBottom: 32 },
+  sideLabel: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  sideLabelOn: { color: PAPER },
+  sideSeg: {
+    alignItems: "center",
+    borderRadius: RADIUS.pill,
+    flex: 1,
+    flexDirection: "row",
+    gap: 6,
+    height: 40,
+    justifyContent: "center",
+  },
+  sideSegOn: { backgroundColor: INK },
+  sideTrack: {
+    backgroundColor: CARD_SOFT,
+    borderRadius: RADIUS.pill,
+    flexDirection: "row",
+    gap: 4,
+    padding: 4,
+  },
+  summary: { gap: 8 },
+  summaryLabel: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 13,
+    fontWeight: "400",
+    lineHeight: 18,
+  },
+  summaryRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  summaryValue: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "400",
+    lineHeight: 18,
+  },
+  toggleMain: { flex: 1, gap: 2 },
+  toggleRow: { alignItems: "center", flexDirection: "row", gap: 12 },
+  toggleWrap: { width: 168 },
+  warn: {
+    alignItems: "flex-start",
+    backgroundColor: AMBER_SOFT,
+    borderRadius: RADIUS.input,
+    flexDirection: "row",
+    gap: 8,
+    padding: 12,
+  },
+  warnText: {
+    color: INK,
+    flex: 1,
+    fontFamily: FONT,
+    fontSize: 13,
+    fontWeight: "400",
+    lineHeight: 18,
+  },
 });
 
 export default TradeTicketScreen;

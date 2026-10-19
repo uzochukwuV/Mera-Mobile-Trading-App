@@ -1,28 +1,8 @@
-import { useState, type ReactElement } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BG,
-  BORDER,
-  CARD,
-  DOWN,
-  DOWN_SOFT,
-  INK,
-  MUTED,
-  PAPER,
-  RADIUS,
-  SECONDARY,
-  SHEET,
-  TEAL,
-} from "./homeTheme";
-import type { CopySettingsForm, CopySettingsProps } from "./types";
+import { ReactElement, useState } from "react";
+import { BG, BORDER, CARD, DOWN, DOWN_SOFT, FONT, INK, MUTED, ON_ACCENT, PAPER, RADIUS, SECONDARY, SHEET, TEAL } from "./homeTheme";
+import { CopySettingsForm, CopySettingsProps } from "./types";
 
 function Field({
   label,
@@ -158,16 +138,16 @@ export type { CopySettingsForm };
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 12, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 6 },
+  scroll: { gap: 12, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 8 },
   back: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 2,
-    paddingVertical: 6,
+    gap: 4,
+    paddingVertical: 8,
   },
-  backLabel: { color: SECONDARY, fontSize: 14, fontWeight: "500" },
-  title: { color: INK, fontSize: 26, fontWeight: "700", lineHeight: 32 },
-  subtitle: { color: MUTED, fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  backLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 14, fontWeight: "400" },
+  title: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", lineHeight: 32 },
+  subtitle: { fontFamily: FONT, color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   errorCard: {
     backgroundColor: DOWN_SOFT,
     borderColor: DOWN_SOFT,
@@ -175,28 +155,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 12,
   },
-  errorText: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 19 },
+  errorText: { fontFamily: FONT, color: DOWN, fontSize: 13, fontWeight: "400", lineHeight: 19 },
   card: {
     backgroundColor: SHEET,
     borderColor: BORDER,
     borderRadius: 20,
     borderWidth: 1,
-    gap: 14,
+    gap: 16,
     padding: 16,
   },
   field: { gap: 4 },
-  label: { color: INK, fontSize: 14, fontWeight: "600" },
+  label: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400" },
   input: {
     backgroundColor: CARD,
     borderColor: BORDER,
     borderRadius: RADIUS.input,
     borderWidth: 1,
     color: INK,
+    fontFamily: FONT,
     fontSize: 16,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
-  hint: { color: MUTED, fontSize: 12, lineHeight: 16 },
+  hint: { fontFamily: FONT, color: MUTED, fontSize: 12, lineHeight: 16 },
   save: {
     alignItems: "center",
     backgroundColor: TEAL,
@@ -206,5 +187,5 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
   },
   saving: { opacity: 0.6 },
-  saveLabel: { color: PAPER, fontSize: 16, fontWeight: "600" },
+  saveLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 16, fontWeight: "400" },
 });

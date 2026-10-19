@@ -1,30 +1,9 @@
-import type { ReactElement } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ReactElement } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  AMBER,
-  AMBER_SOFT,
-  BG,
-  BORDER,
-  CARD,
-  DOWN,
-  DOWN_SOFT,
-  INK,
-  MUTED,
-  RADIUS,
-  SECONDARY,
-  UP,
-  UP_SOFT,
-} from "./homeTheme";
+import { AMBER, AMBER_SOFT, BG, BORDER, CARD, DOWN, DOWN_SOFT, FONT, INK, MUTED, RADIUS, SECONDARY, UP, UP_SOFT } from "./homeTheme";
 import { PillButton } from "./ui";
-import type { TournamentRow, TournamentsProps } from "./types";
+import { TournamentRow, TournamentsProps } from "./types";
 
 function StatusTag({ status }: { status: TournamentRow["status"] }) {
   const tone =
@@ -158,7 +137,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
-  headerTitle: { color: INK, fontSize: 26, fontWeight: "700", lineHeight: 32 },
+  headerTitle: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", lineHeight: 32 },
   count: {
     alignItems: "center",
     backgroundColor: CARD,
@@ -170,7 +149,7 @@ const styles = StyleSheet.create({
     minWidth: 28,
     paddingHorizontal: 8,
   },
-  countLabel: { color: SECONDARY, fontSize: 13, fontWeight: "700" },
+  countLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 13, fontWeight: "400" },
   scroll: { gap: 12, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 8 },
   card: {
     backgroundColor: CARD,
@@ -190,42 +169,42 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
   },
-  headMain: { flex: 1, gap: 2 },
-  name: { color: INK, fontSize: 17, fontWeight: "700", lineHeight: 22 },
-  meta: { color: SECONDARY, fontSize: 13, fontWeight: "500", lineHeight: 18 },
-  rankRow: { alignItems: "center", flexDirection: "row", gap: 6 },
-  rank: { color: MUTED, fontSize: 12, fontWeight: "600", lineHeight: 16 },
+  headMain: { flex: 1, gap: 4 },
+  name: { fontFamily: FONT, color: INK, fontSize: 17, fontWeight: "400", lineHeight: 22 },
+  meta: { fontFamily: FONT, color: SECONDARY, fontSize: 13, fontWeight: "400", lineHeight: 18 },
+  rankRow: { alignItems: "center", flexDirection: "row", gap: 8 },
+  rank: { fontFamily: FONT, color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
   joined: {
     alignItems: "center",
     borderColor: BORDER,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 6,
+    gap: 8,
     justifyContent: "center",
     paddingVertical: 12,
   },
-  joinedLabel: { color: SECONDARY, fontSize: 14, fontWeight: "600", lineHeight: 20 },
+  joinedLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 14, fontWeight: "400", lineHeight: 20 },
   tag: {
     alignItems: "center",
     alignSelf: "flex-start",
     borderRadius: RADIUS.pill,
     flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
   tagDot: { borderRadius: RADIUS.pill, height: 6, width: 6 },
-  tagLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
+  tagLabel: { fontFamily: FONT, fontSize: 12, fontWeight: "400", lineHeight: 15 },
   loading: { alignItems: "center", gap: 8, paddingVertical: 48 },
-  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
-  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  emptyTitle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 22, textAlign: "center" },
+  emptyBody: { fontFamily: FONT, color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
   notice: {
     backgroundColor: DOWN_SOFT,
     borderRadius: RADIUS.card,
     padding: 12,
   },
-  noticeText: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 18, textAlign: "center" },
+  noticeText: { fontFamily: FONT, color: DOWN, fontSize: 13, fontWeight: "400", lineHeight: 18, textAlign: "center" },
 });
 
 export default TournamentsScreen;

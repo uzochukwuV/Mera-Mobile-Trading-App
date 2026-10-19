@@ -151,7 +151,10 @@ export class TradingSession extends EventEmitter {
     }, SIGN_IN_TIMEOUT_MS);
 
     ws.onopen = () => {
-      void this.signIn(ws);
+      void this.signIn(ws).catch((error: unknown) => {
+        logger.error(`trading ws ${this.userId}: sign-in failed`, error);
+        ws.close(4001, 'sign-in failed');
+      });
     };
 
     ws.onmessage = (event) => {

@@ -1,34 +1,9 @@
-import { useState, type ReactElement } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { coinColor } from "./coinMeta";
-import {
-  AMBER,
-  AMBER_SOFT,
-  BG,
-  BORDER,
-  CARD,
-  DOWN,
-  DOWN_SOFT,
-  INK,
-  MUTED,
-  PAPER,
-  RADIUS,
-  SECONDARY,
-  SHEET,
-  TEAL,
-  UP,
-  UP_SOFT,
-} from "./homeTheme";
-import type { TradeFillRow, TradesProps } from "./types";
+import { ReactElement, useState } from "react";
+import { AMBER, AMBER_SOFT, BG, BORDER, CARD, DOWN, DOWN_SOFT, FONT, INK, MUTED, PAPER, RADIUS, SECONDARY, SHEET, TEAL, UP, UP_SOFT } from "./homeTheme";
+import { TradeFillRow, TradesProps } from "./types";
 
 type Filter = "All" | "Copy" | "Manual" | "Exchange";
 const FILTERS: Filter[] = ["All", "Copy", "Manual", "Exchange"];
@@ -176,7 +151,7 @@ export function TradesScreen(props: TradesProps): ReactElement {
 
         {loading && fills.length === 0 ? (
           <View style={styles.loading}>
-            <ActivityIndicator size="large" color={TEAL} />
+            <ActivityIndicator size="large" color={INK} />
             <Text style={styles.emptyBody}>Loading trades…</Text>
           </View>
         ) : loadError && fills.length === 0 ? (
@@ -247,13 +222,14 @@ export function TradesScreen(props: TradesProps): ReactElement {
 
 const styles = StyleSheet.create({
   amount: {
+    fontFamily: FONT,
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "400",
     fontVariant: ["tabular-nums"],
     lineHeight: 18,
   },
-  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
-  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 4, paddingVertical: 4 },
+  backLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 15, fontWeight: "400", lineHeight: 20 },
   badge: {
     alignItems: "center",
     borderRadius: RADIUS.pill,
@@ -261,37 +237,38 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
   },
-  badgeText: { color: PAPER, fontSize: 17, fontWeight: "800" },
-  caption: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 1, lineHeight: 14 },
+  badgeText: { fontFamily: FONT, color: PAPER, fontSize: 17, fontWeight: "400" },
+  caption: { fontFamily: FONT, color: MUTED, fontSize: 11, fontWeight: "400", letterSpacing: 1, lineHeight: 14 },
   chip: {
     alignItems: "center",
     borderRadius: RADIUS.pill,
     justifyContent: "center",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   chipActive: { backgroundColor: INK },
-  chipActiveLabel: { color: PAPER, fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  chipActiveLabel: { fontFamily: FONT, color: PAPER, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   chipIdle: { backgroundColor: CARD },
-  chipIdleLabel: { color: SECONDARY, fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  chipIdleLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   chips: { flexDirection: "row", gap: 8 },
   down: { color: DOWN },
   empty: { gap: 4, padding: 8 },
-  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
-  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
+  emptyBody: { fontFamily: FONT, color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  emptyTitle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 22, textAlign: "center" },
   hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
   list: {
     backgroundColor: SHEET,
     borderColor: BORDER,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
   pnl: {
+    fontFamily: FONT,
     fontSize: 26,
-    fontWeight: "800",
+    fontWeight: "400",
     fontVariant: ["tabular-nums"],
     letterSpacing: -0.5,
     lineHeight: 32,
@@ -305,23 +282,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
-  retryLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
+  retryLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400" },
   row: {
     alignItems: "center",
     flexDirection: "row",
     gap: 12,
     paddingVertical: 12,
   },
-  rowDetail: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
-  rowMain: { flex: 1, gap: 2 },
-  rowRight: { alignItems: "flex-end", gap: 6 },
-  rowTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  rowDetail: { fontFamily: FONT, color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
+  rowMain: { flex: 1, gap: 4 },
+  rowRight: { alignItems: "flex-end", gap: 8 },
+  rowTitle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 20 },
   screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
+  scroll: { gap: 16, padding: 20, paddingBottom: 32 },
   section: { gap: 8 },
-  sectionCount: { color: MUTED, fontSize: 12, fontWeight: "500", lineHeight: 15 },
+  sectionCount: { fontFamily: FONT, color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 15 },
   sectionHeader: { alignItems: "baseline", flexDirection: "row", gap: 8 },
-  sectionTitle: { color: INK, fontSize: 18, fontWeight: "700", lineHeight: 24 },
+  sectionTitle: { fontFamily: FONT, color: INK, fontSize: 18, fontWeight: "400", lineHeight: 24 },
   summary: {
     backgroundColor: CARD,
     borderColor: BORDER,
@@ -333,11 +310,11 @@ const styles = StyleSheet.create({
   tag: {
     alignSelf: "flex-start",
     borderRadius: RADIUS.pill,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     paddingVertical: 4,
   },
-  tagLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  title: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
+  tagLabel: { fontFamily: FONT, fontSize: 12, fontWeight: "400", lineHeight: 15 },
+  title: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", letterSpacing: -0.4, lineHeight: 32 },
   up: { color: UP },
 });
 

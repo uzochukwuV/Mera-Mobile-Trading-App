@@ -15,8 +15,18 @@ import {
 } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useFonts } from "@expo-google-fonts/inter";
+import { Inter_400Regular } from "@expo-google-fonts/inter";
 import { isAddressEqual } from "viem";
-import { BORDER, INK, INDIGO, MUTED, PAPER, RADIUS, SHADOW_SOFT } from "./src/screens/homeTheme";
+import {
+  BG,
+  FONT,
+  INDIGO,
+  OBSIDIAN,
+  PAPER,
+  RADIUS,
+  SMOKE,
+} from "./src/screens/homeTheme";
 import { type AccountState } from "./src/account";
 import {
   ApiError,
@@ -146,7 +156,7 @@ function formatConnectedAt(iso: string | null): string | undefined {
   });
 }
 
-export default function App() {
+function App() {
   const [account, setAccount] = useState<AccountState | null>(null);
   const [evm, setEvm] = useState<EvmContext | null>(null);
   const [evmError, setEvmError] = useState<string | null>(null);
@@ -1607,6 +1617,7 @@ export default function App() {
               notice={ticketNotice}
               onSizeChange={setTicketSize}
               onLeverageChange={setTicketLeverage}
+              onSideChange={setTicketSide}
               onSubmit={() => void handleTicketSubmit(false)}
               onDryRun={() => void handleTicketSubmit(true)}
               onBack={pop}
@@ -1795,6 +1806,7 @@ export default function App() {
           ) : (
             <DashboardScreen
               equity={dash?.equity ?? "0.00"}
+              equitySeries={dash?.equitySeries}
               available={dash?.available}
               walletAddress={
                 account.status === "unlocked"
@@ -1845,7 +1857,7 @@ export default function App() {
                   <Ionicons
                     name={active ? tab.icon : tab.iconOutline}
                     size={24}
-                    color={active ? INK : MUTED}
+                    color={active ? PAPER : SMOKE}
                   />
                   <Text
                     style={[
@@ -1865,31 +1877,39 @@ export default function App() {
   );
 }
 
+// Lausanne's documented substitute is bundled so every platform sets the
+// same face. Nothing renders until it is ready; if loading fails we fall
+// back to the system sans rather than block the app.
+export default function Root() {
+  const [loaded, error] = useFonts({ Inter: Inter_400Regular });
+  if (!loaded && !error) {
+    return <View style={styles.boot} />;
+  }
+  return <App />;
+}
+
 const styles = StyleSheet.create({
-  screen: { backgroundColor: PAPER, flex: 1 },
-  onboardingScreen: { backgroundColor: PAPER, flex: 1 },
+  boot: { backgroundColor: BG, flex: 1 },
+  screen: { backgroundColor: BG, flex: 1 },
+  onboardingScreen: { backgroundColor: BG, flex: 1 },
   tab: {
     alignItems: "center",
-    gap: 3,
+    gap: 4,
     minHeight: 52,
     minWidth: 60,
     paddingHorizontal: spacing.sm,
     paddingVertical: spacing.xs,
   },
-  tabActiveText: { color: INK },
+  tabActiveText: { color: PAPER },
   tabBar: {
-    backgroundColor: PAPER,
-    borderTopColor: BORDER,
+    backgroundColor: OBSIDIAN,
     borderTopLeftRadius: RADIUS.sheet,
     borderTopRightRadius: RADIUS.sheet,
-    borderTopWidth: 1,
     flexDirection: "row",
     justifyContent: "space-around",
     paddingBottom: spacing.md,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
-    ...SHADOW_SOFT,
-    shadowOffset: { width: 0, height: -8 },
   },
   tabDot: {
     backgroundColor: INDIGO,
@@ -1897,7 +1917,7 @@ const styles = StyleSheet.create({
     height: 5,
     width: 5,
   },
-  tabIdleText: { color: MUTED },
-  tabLabel: { fontSize: 11, fontWeight: "600", lineHeight: 14 },
+  tabIdleText: { color: SMOKE },
+  tabLabel: { fontFamily: FONT, fontSize: 11, fontWeight: "400", lineHeight: 14 },
   tour: { flex: 1 },
 });

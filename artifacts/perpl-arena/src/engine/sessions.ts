@@ -17,7 +17,11 @@ import {
   LEADER_SNAPSHOT_MS,
   SESSION_POLL_MS,
 } from '../config.js';
-import { PerplRestClient, type KeyMaterial } from '../perpl/rest.js';
+import {
+  PerplRestClient,
+  privateKeyFromHex,
+  type KeyMaterial,
+} from '../perpl/rest.js';
 import { TradingSession } from '../perpl/tradingWs.js';
 import { rawToUsd } from '../perpl/scaling.js';
 import { marketRegistry } from '../perpl/context.js';
@@ -179,7 +183,7 @@ export class SessionRegistry implements SessionLookup {
     try {
       key = {
         token: decrypt(row.api_key_token),
-        privateKey: Buffer.from(decrypt(row.api_key_secret), 'hex'),
+        privateKey: privateKeyFromHex(decrypt(row.api_key_secret)),
       };
     } catch (error) {
       logger.error(
@@ -327,6 +331,23 @@ export class SessionRegistry implements SessionLookup {
       );
     }
     managed.lastEquity = equity;
+    const balance = rawToUsd(session.balance);
+    const locked =
+      session.lockedBalance === undefined
+        ? null
+        : rawToUsd(session.lockedBalance);
+    void pool
+      .query(
+        `update perpl_accounts
+            set wallet_balance_usd = $1,
+                wallet_locked_usd = coalesce($2, wallet_locked_usd),
+                wallet_updated_at = now()
+          where id = $3`,
+        [balance, locked, managed.row.id],
+      )
+      .catch((error) =>
+        logger.error('wallet balance mirror write failed', error),
+      );
     void pool
       .query(
         `insert into equity_snapshots (user_id, equity) values ($1, $2)`,

@@ -79,6 +79,28 @@ export function validateQuery<T>(schema: z.ZodType<T>) {
   };
 }
 
+const UUID_PATTERN =
+  /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+
+/**
+ * Guards a uuid path parameter before it reaches Postgres.
+ *
+ * Postgres raises `invalid input syntax for type uuid` for anything that
+ * is not a uuid, and the error handler can only turn that into a 500.
+ * A malformed id is a row that cannot exist, so it is a 404 — the same
+ * answer a well-formed id that matches nothing already gets.
+ */
+export function uuidParam(name = 'id', label = 'resource') {
+  return (req: Request, _res: Response, next: NextFunction): void => {
+    const value = req.params[name];
+    if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+      next(ApiError.notFound(`No such ${label}`));
+      return;
+    }
+    next();
+  };
+}
+
 /** Final error handler: { error: { code, message } }. */
 export function errorHandler(
   error: unknown,

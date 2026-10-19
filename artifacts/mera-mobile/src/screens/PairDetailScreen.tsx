@@ -1,50 +1,43 @@
-import { useEffect, useState } from "react";
-import type { ReactElement } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
-import Svg, { Path } from "react-native-svg";
+// One market, read once.
+//
+// THE SHAPE OF THE SCREEN IS THE ORDER YOU READ IT IN: who it is, what
+// it costs, the line and its volume, the numbers behind the line, what
+// you already hold, then the two ways to act. One hero surface — the
+// chart — and everything under it flat on the canvas, separated by
+// hairlines rather than stacked into a tower of cards. A card is
+// elevation; using it for a five-cell table is decoration.
+//
+// Two things were deleted rather than restyled: a Trades/Orders
+// segmented control that owned no state and switched nothing, and a row
+// of MA/BOLL/MACD/VOL/RSI chips that were not wired to anything. Dead
+// controls are the most expensive kind of "worked".
+
 import { Ionicons } from "@expo/vector-icons";
-import { coinColor } from "./coinMeta";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
+
 import {
-  BG,
+  ApiCandle,
+  ApiMarket,
+  getCandles,
+  getMarketsCached,
+  toMarketRow,
+} from "../api";
+import {
   BORDER,
   CARD,
-  CARD_SOFT,
-  DOWN,
-  DOWN_SOFT,
+  FONT,
   INK,
   MUTED,
   PAPER,
   RADIUS,
   SECONDARY,
-  SHADOW_SOFT,
-  TEAL,
-  UP,
-  UP_SOFT,
 } from "./homeTheme";
-import {
-  getCandles,
-  getMarketsCached,
-  toMarketRow,
-  type ApiCandle,
-  type ApiMarket,
-} from "../api";
+import { PriceChart } from "./PriceChart";
+import { QuoteHeader } from "./QuoteHeader";
+import { StackBar, StackedBars } from "./StackedBars";
 import type { PairDetailProps, PositionRow } from "./types";
-
-// Fixed mock trajectory — fallback until live candles arrive.
-const CHART_LINE =
-  "M0,72 L30,68 L60,70 L90,58 L120,60 L150,46 L180,50 L210,36 L240,40 L270,22 L300,18";
-
-const TABS = ["Trades", "Orders"] as const;
-type Tab = (typeof TABS)[number];
-
-const INDICATORS = ["MA", "BOLL", "MACD", "VOL", "RSI"] as const;
 
 const TIMEFRAMES = ["Live", "1H", "4H", "1D", "1W", "1M"] as const;
 type Timeframe = (typeof TIMEFRAMES)[number];
@@ -58,10 +51,6 @@ const TIMEFRAME_PARAMS: Record<Timeframe, { resolution: number; hours: number }>
   "1M": { resolution: 14400, hours: 720 },
 };
 
-function formatChange(changePct: number): string {
-  return `${changePct >= 0 ? "+" : ""}${changePct.toFixed(2)}%`;
-}
-
 function formatCompactUsd(value: number): string {
   if (!Number.isFinite(value)) return "—";
   const abs = Math.abs(value);
@@ -73,52 +62,45 @@ function formatCompactUsd(value: number): string {
   return `$${value.toFixed(2)}`;
 }
 
-/** Line path through candle closes in a 300x96 box. */
-function closesToPath(closes: number[]): string | null {
-  if (closes.length < 2) return null;
-  const min = Math.min(...closes);
-  const max = Math.max(...closes);
-  const span = max - min || 1;
-  const step = 300 / (closes.length - 1);
-  return closes
-    .map((c, i) => {
-      const x = (i * step).toFixed(1);
-      const y = (88 - ((c - min) / span) * 80).toFixed(1);
-      return `${i === 0 ? "M" : "L"}${x},${y}`;
-    })
-    .join(" ");
+/** One cell of the spec sheet: label over value, hairline between. */
+function Spec({
+  label,
+  value,
+  divider = false,
+}: {
+  label: string;
+  value: string;
+  divider?: boolean;
+}): ReactElement {
+  return (
+    <View style={[styles.spec, divider ? styles.specDivider : null]}>
+      <Text style={styles.specLabel}>{label}</Text>
+      <Text style={styles.specValue}>{value}</Text>
+    </View>
+  );
 }
 
-function PositionCard({ position }: { position: PositionRow }): ReactElement {
-  const long = position.side === "Long";
+function PositionPanel({ position }: { position: PositionRow }): ReactElement {
   return (
-    <View style={styles.row}>
-      <View style={[styles.coin, { backgroundColor: coinColor(position.symbol) }]}>
-        <Text style={styles.coinText}>{position.symbol.slice(0, 1)}</Text>
+    <View style={styles.posRow}>
+      <View style={styles.posDisc}>
+        <Text style={styles.posDiscText}>{position.symbol.slice(0, 1)}</Text>
       </View>
-      <View style={styles.rowMain}>
-        <Text style={styles.rowTitle}>{position.symbol}</Text>
-        <Text style={styles.rowDetail}>{position.size}</Text>
+      <View style={styles.posMain}>
+        <Text style={styles.posTitle}>{position.symbol}</Text>
+        <Text style={styles.posDetail}>
+          {position.side}
+          {` · ${position.size}`}
+          {position.mark !== undefined ? ` @ ${position.mark}` : ""}
+        </Text>
       </View>
-      <View style={styles.rowRight}>
-        <View
-          style={[
-            styles.pill,
-            long ? styles.pillLong : styles.pillShort,
-          ]}
+      <View style={styles.posRight}>
+        <Text
+          style={[styles.posPnl, position.pnlUp ? null : styles.posPnlDown]}
         >
-          <Text
-            style={[
-              styles.pillLabel,
-              long ? styles.up : styles.down,
-            ]}
-          >
-            {position.side}
-          </Text>
-        </View>
-        <Text style={[styles.pnl, position.pnlUp ? styles.up : styles.down]}>
           {position.pnl}
         </Text>
+        <Text style={styles.posPnlLabel}>UNREALISED</Text>
       </View>
     </View>
   );
@@ -141,7 +123,6 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
     onTrade,
   } = props;
 
-  const [tab, setTab] = useState<Tab>("Trades");
   const [timeframe, setTimeframe] = useState<Timeframe>("Live");
   const [market, setMarket] = useState<ApiMarket | null>(null);
   const [candles, setCandles] = useState<ApiCandle[] | null>(null);
@@ -198,9 +179,7 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
   const changePct = liveRow?.changePct ?? changeProp;
   const volume = liveRow?.volume ?? volumeProp;
   const candleHigh =
-    candles && candles.length > 0
-      ? Math.max(...candles.map((c) => c.h))
-      : null;
+    candles && candles.length > 0 ? Math.max(...candles.map((c) => c.h)) : null;
   const candleLow =
     candles && candles.length > 0 ? Math.min(...candles.map((c) => c.l)) : null;
   const priceDecimals = market?.price_decimals ?? 2;
@@ -226,25 +205,46 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
             (Number(market.mark_price) / 10 ** market.price_decimals),
         )
       : oiProp;
-  const closes = candles?.map((c) => c.c) ?? [];
-  const liveLine = closesToPath(closes);
-  const line = liveLine ?? CHART_LINE;
-  const area = `${line} L300,96 L0,96 Z`;
-  const up = changePct >= 0;
-  const lineColor = up ? UP : DOWN;
-  const stats: Array<{ label: string; value: string }> = [
-    { label: "High", value: high },
-    { label: "Low", value: low },
-    { label: "24h volume", value: volume },
-    { label: "Open interest", value: openInterest },
-    { label: "Mark", value: mark },
-  ];
+
+  // ── volume, from the same candles the line is drawn from ──
+  // Fourteen buckets, each split by the side the candle closed on.
+  // Nothing here is invented: a bucket is the sum of the volume of the
+  // candles in it, and "up" means close ≥ open.
+  const volumeBars: StackBar[] = (() => {
+    const src = candles ?? [];
+    if (src.length < 4) return [];
+    const buckets = Math.min(14, src.length);
+    const size = Math.max(1, Math.ceil(src.length / buckets));
+    const out: StackBar[] = [];
+    for (let i = 0; i < src.length; i += size) {
+      const slice = src.slice(i, i + size);
+      let bought = 0;
+      let sold = 0;
+      for (const c of slice) {
+        // `v` arrives as a STRING, in micro-USD. Adding the strings
+        // concatenates — one bucket came out at 1e49 and every other
+        // bar flattened to its floor. Coerce, then scale to dollars
+        // so the readout agrees with the market row's 24h volume.
+        const usd = (Number(c.v) || 0) / 1e6;
+        if (c.c >= c.o) bought += usd;
+        else sold += usd;
+      }
+      const stamp = slice[slice.length - 1]?.t ?? 0;
+      const d = new Date(stamp > 1e12 ? stamp : stamp * 1000);
+      out.push({
+        label: `${String(d.getHours()).padStart(2, "0")}:${String(
+          d.getMinutes(),
+        ).padStart(2, "0")}`,
+        values: [bought, sold],
+      });
+    }
+    return out;
+  })();
+
+  const chartFailed = candles === null && !chartLoading && chartError !== null;
 
   return (
-    <ScrollView
-      style={styles.screen}
-      contentContainerStyle={styles.scroll}
-    >
+    <ScrollView style={styles.screen} contentContainerStyle={styles.scroll}>
       <Pressable
         accessibilityRole="button"
         hitSlop={8}
@@ -255,164 +255,117 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
         <Text style={styles.backLabel}>Back</Text>
       </Pressable>
 
-      <View style={styles.header}>
-        <View
-          style={[styles.coinLarge, { backgroundColor: coinColor(symbol) }]}
-        >
-          <Text style={styles.coinLargeText}>{symbol.slice(0, 1)}</Text>
-        </View>
-        <View style={styles.headerMain}>
-          <Text style={styles.symbol}>{symbol} / USD</Text>
-          <View style={styles.quoteRow}>
-            <Text style={styles.mark}>{mark}</Text>
-            <View style={[styles.pill, up ? styles.pillLong : styles.pillShort]}>
-              <Text style={[styles.pillLabel, up ? styles.up : styles.down]}>
-                {formatChange(changePct)}
-              </Text>
-            </View>
-          </View>
-        </View>
-      </View>
+      <QuoteHeader
+        changePct={changePct}
+        loading={market === null && marketId !== undefined && !liveRow}
+        mark={mark}
+        symbol={symbol}
+        window="24H"
+      />
 
-      <View style={styles.segmented}>
-        {TABS.map((item) => {
-          const active = item === tab;
-          return (
-            <Pressable
-              key={item}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              onPress={() => setTab(item)}
-              style={[styles.segment, active ? styles.segmentActive : null]}
-            >
-              <Text style={active ? styles.segmentLabelActive : styles.segmentLabel}>
-                {item}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={styles.card}>
-        {chartLoading && liveLine === null ? (
-          <View style={styles.chartLoading}>
-            <ActivityIndicator size="small" color={MUTED} />
-          </View>
-        ) : (
-          <Svg
-            accessibilityLabel="Price chart"
-            viewBox="0 0 300 96"
-            style={styles.chart}
-          >
-            <Path d={area} fill={lineColor} opacity={0.12} />
-            <Path
-              d={line}
-              fill="none"
-              stroke={lineColor}
-              strokeWidth={2.5}
-              strokeLinecap="round"
-              strokeLinejoin="round"
+      {/* ── the hero: one surface, three readings ───────────── */}
+      <View style={styles.hero}>
+        <View style={styles.heroChart}>
+          {chartFailed ? (
+            <Text style={styles.chartError}>{chartError}</Text>
+          ) : (
+            <PriceChart
+              candles={candles}
+              digits={digits}
+              height={180}
+              loading={chartLoading}
             />
-          </Svg>
-        )}
-        {chartError && liveLine === null ? (
-          <Text style={styles.chartCaption}>{chartError}</Text>
+          )}
+        </View>
+
+        {volumeBars.length > 0 ? (
+          <View style={styles.volume}>
+            <StackedBars
+              bars={volumeBars}
+              caption="VOLUME · BUYS / SELLS"
+              generation={TIMEFRAMES.indexOf(timeframe)}
+              height={36}
+            />
+          </View>
         ) : null}
-        <View style={styles.chartMeta}>
-          <Text style={styles.chartCaption}>H {high}</Text>
-          <Text style={styles.chartCaption}>L {low}</Text>
-        </View>
-      </View>
 
-      <View style={styles.chipsRow}>
-        {INDICATORS.map((item) => (
-          <View key={item} style={styles.indChip}>
-            <Text style={styles.indLabel}>{item}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={styles.chipsRow}>
-        {TIMEFRAMES.map((item) => {
-          const active = item === timeframe;
-          return (
-            <Pressable
-              key={item}
-              accessibilityRole="button"
-              accessibilityState={{ selected: active }}
-              onPress={() => setTimeframe(item)}
-              style={[styles.tfChip, active ? styles.tfActive : styles.tfIdle]}
-            >
-              {item === "Live" ? (
-                <View
-                  style={[
-                    styles.liveDot,
-                    { backgroundColor: active ? PAPER : UP },
-                  ]}
-                />
-              ) : null}
-              <Text
-                style={[
-                  styles.tfLabel,
-                  active ? styles.tfLabelActive : null,
-                ]}
+        <View style={styles.tfRow}>
+          {TIMEFRAMES.map((item) => {
+            const active = item === timeframe;
+            return (
+              <Pressable
+                key={item}
+                accessibilityRole="button"
+                accessibilityState={{ selected: active }}
+                onPress={() => setTimeframe(item)}
+                style={styles.tf}
               >
-                {item}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.grid}>
-          {stats.map((cell) => (
-            <View key={cell.label} style={styles.cell}>
-              <Text style={styles.cellLabel}>{cell.label}</Text>
-              <Text style={styles.cellValue}>{cell.value}</Text>
-            </View>
-          ))}
+                <Text
+                  style={[styles.tfLabel, active ? styles.tfLabelActive : null]}
+                >
+                  {item.toUpperCase()}
+                </Text>
+                <View style={[styles.tfBar, active ? styles.tfBarOn : null]} />
+              </Pressable>
+            );
+          })}
         </View>
       </View>
 
-      <View style={styles.card}>
+      {/* ── the numbers behind the line, as a spec sheet ─────── */}
+      <View style={styles.specs}>
+        <View style={styles.specRow}>
+          <Spec label="MARK" value={mark} />
+          <Spec divider label="24H HIGH" value={high} />
+        </View>
+        <View style={styles.specRow}>
+          <Spec label="24H LOW" value={low} />
+          <Spec divider label="24H VOLUME" value={volume} />
+        </View>
+        <View style={[styles.specRow, styles.specRowLast]}>
+          <Spec label="OPEN INTEREST" value={openInterest} />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>POSITION</Text>
         {position != null ? (
-          <PositionCard position={position} />
+          <PositionPanel position={position} />
         ) : (
-          <View style={styles.emptyWrap}>
-            <Text style={styles.emptyText}>No open position</Text>
-          </View>
+          <Text style={styles.empty}>No open position on this market.</Text>
         )}
       </View>
 
-      <Text style={styles.risk}>
-        Perps are leveraged — you can lose your collateral.
-      </Text>
-
-      <View style={styles.directionRow}>
+      <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
           onPress={() => onTrade?.("long")}
           style={({ pressed }) => [
-            styles.directionBlock,
-            styles.longBlock,
+            styles.action,
+            styles.actionLong,
             pressed ? styles.pressed : null,
           ]}
         >
-          <Text style={styles.directionLabel}>LONG</Text>
+          <Ionicons name="arrow-up" size={16} color={PAPER} />
+          <Text style={styles.actionLabelLong}>Long</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
           onPress={() => onTrade?.("short")}
           style={({ pressed }) => [
-            styles.directionBlock,
-            styles.shortBlock,
+            styles.action,
+            styles.actionShort,
             pressed ? styles.pressed : null,
           ]}
         >
-          <Text style={styles.directionLabel}>SHORT</Text>
+          <Ionicons name="arrow-down" size={16} color={INK} />
+          <Text style={styles.actionLabelShort}>Short</Text>
         </Pressable>
       </View>
+
+      <Text style={styles.risk}>
+        Perps are leveraged — you can lose your collateral.
+      </Text>
 
       <Pressable
         accessibilityRole="button"
@@ -420,167 +373,226 @@ export function PairDetailScreen(props: PairDetailProps = {}): ReactElement {
         onPress={() => onCopyTrader?.()}
         style={styles.copyWrap}
       >
-        <Text style={styles.copyLabel}>Copy top trader instead →</Text>
+        <Ionicons name="people-outline" size={16} color={SECONDARY} />
+        <Text style={styles.copyLabel}>Copy top traders instead</Text>
+        <Ionicons name="chevron-forward" size={16} color={MUTED} />
       </Pressable>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
-  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  card: {
-    backgroundColor: CARD,
-    borderColor: BORDER,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    gap: 10,
-    padding: 16,
-    ...SHADOW_SOFT,
-  },
-  cell: { flexBasis: "46%", flexGrow: 1, gap: 2, paddingVertical: 8 },
-  cellLabel: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 0.6, lineHeight: 14, textTransform: "uppercase" },
-  cellValue: {
-    color: INK,
-    fontSize: 15,
-    fontWeight: "700",
-    fontVariant: ["tabular-nums"],
-    lineHeight: 20,
-  },
-  chart: { height: 120, width: "100%" },
-  chartCaption: { color: MUTED, fontSize: 12, fontWeight: "500", lineHeight: 16 },
-  chartLoading: {
+  action: {
     alignItems: "center",
-    height: 120,
-    justifyContent: "center",
-    width: "100%",
-  },
-  chartMeta: {
+    borderRadius: RADIUS.pill,
+    flex: 1,
     flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  chipsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  coin: {
-    alignItems: "center",
-    borderRadius: RADIUS.pill,
-    height: 42,
-    justifyContent: "center",
-    width: 42,
-  },
-  coinText: { color: PAPER, fontSize: 17, fontWeight: "800" },
-  coinLarge: {
-    alignItems: "center",
-    borderRadius: RADIUS.pill,
+    gap: 8,
     height: 52,
     justifyContent: "center",
-    width: 52,
   },
-  coinLargeText: { color: PAPER, fontSize: 21, fontWeight: "800" },
-  copyLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
-  copyWrap: { alignItems: "center", paddingVertical: 6 },
-  directionBlock: {
-    alignItems: "center",
-    borderRadius: RADIUS.pill,
-    flex: 1,
-    justifyContent: "center",
-    minHeight: 56,
-  },
-  directionLabel: {
+  actionLabelLong: {
     color: PAPER,
+    fontFamily: FONT,
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: "400",
     lineHeight: 20,
   },
-  directionRow: { flexDirection: "row", gap: 10 },
-  down: { color: DOWN },
-  emptyText: { color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 19 },
-  emptyWrap: {
-    alignItems: "center",
-    backgroundColor: CARD_SOFT,
-    borderRadius: RADIUS.card,
-    padding: 14,
+  actionLabelShort: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 16,
+    fontWeight: "400",
+    lineHeight: 20,
   },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
-  header: { alignItems: "center", flexDirection: "row", gap: 12 },
-  headerMain: { flex: 1, gap: 4 },
-  indChip: {
+  actionLong: { backgroundColor: INK },
+  actionShort: {
+    backgroundColor: PAPER,
+    borderColor: INK,
+    borderWidth: 1,
+  },
+  actions: { flexDirection: "row", gap: 12 },
+  back: {
+    alignItems: "center",
+    alignSelf: "flex-start",
+    flexDirection: "row",
+    gap: 4,
+    paddingVertical: 4,
+  },
+  backLabel: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 15,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  chartError: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 13,
+    fontWeight: "400",
+    lineHeight: 20,
+    paddingVertical: 48,
+    textAlign: "center",
+  },
+  copyLabel: {
+    color: INK,
+    flex: 1,
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  copyWrap: {
+    alignItems: "center",
+    borderTopColor: BORDER,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 16,
+  },
+  empty: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 14,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  hero: {
     backgroundColor: CARD,
+    borderColor: BORDER,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    overflow: "hidden",
+  },
+  heroChart: { paddingHorizontal: 16, paddingTop: 12 },
+  posDetail: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 13,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "400",
+    lineHeight: 18,
+  },
+  posDisc: {
+    alignItems: "center",
+    backgroundColor: PAPER,
     borderColor: BORDER,
     borderRadius: RADIUS.pill,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    height: 36,
+    justifyContent: "center",
+    width: 36,
   },
-  indLabel: { color: SECONDARY, fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  liveDot: { borderRadius: RADIUS.pill, height: 6, width: 6 },
-  longBlock: { backgroundColor: UP },
-  mark: {
+  posDiscText: {
     color: INK,
-    fontSize: 34,
-    fontWeight: "800",
+    fontFamily: FONT,
+    fontSize: 15,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  posMain: { flex: 1, gap: 2 },
+  posPnl: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 16,
     fontVariant: ["tabular-nums"],
-    letterSpacing: -0.5,
-    lineHeight: 41,
+    fontWeight: "400",
+    lineHeight: 20,
   },
-  pill: {
-    alignSelf: "flex-start",
-    borderRadius: RADIUS.pill,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+  posPnlDown: { color: SECONDARY },
+  posPnlLabel: {
+    color: MUTED,
+    fontFamily: FONT,
+    fontSize: 10,
+    fontWeight: "400",
+    letterSpacing: 0.6,
+    lineHeight: 14,
   },
-  pillLabel: { fontSize: 12, fontWeight: "700", lineHeight: 15 },
-  pillLong: { backgroundColor: UP_SOFT },
-  pillShort: { backgroundColor: DOWN_SOFT },
-  pnl: {
-    fontSize: 14,
-    fontWeight: "700",
+  posRight: { alignItems: "flex-end", gap: 2 },
+  posRow: { alignItems: "center", flexDirection: "row", gap: 12 },
+  posTitle: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 16,
+    fontWeight: "400",
+    lineHeight: 20,
+  },
+  spec: { flex: 1, gap: 2, paddingVertical: 12 },
+  specDivider: {
+    borderLeftColor: BORDER,
+    borderLeftWidth: StyleSheet.hairlineWidth,
+    paddingLeft: 16,
+  },
+  specLabel: {
+    color: MUTED,
+    fontFamily: FONT,
+    fontSize: 10,
+    fontWeight: "400",
+    letterSpacing: 0.6,
+    lineHeight: 14,
+  },
+  specRow: {
+    borderBottomColor: BORDER,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+  },
+  specRowLast: { borderBottomWidth: 0 },
+  specs: { borderTopColor: BORDER, borderTopWidth: StyleSheet.hairlineWidth },
+  specValue: {
+    color: INK,
+    fontFamily: FONT,
+    fontSize: 16,
     fontVariant: ["tabular-nums"],
-    lineHeight: 18,
+    fontWeight: "400",
+    lineHeight: 20,
   },
-  pressed: { opacity: 0.85 },
-  quoteRow: { alignItems: "center", flexDirection: "row", gap: 10 },
-  risk: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16, textAlign: "center" },
-  row: {
-    alignItems: "center",
+  pressed: { opacity: 0.7 },
+  risk: {
+    color: MUTED,
+    fontFamily: FONT,
+    fontSize: 12,
+    fontWeight: "400",
+    lineHeight: 16,
+    textAlign: "center",
+  },
+  screen: { backgroundColor: "transparent", flex: 1 },
+  scroll: { gap: 20, padding: 20, paddingBottom: 32 },
+  section: { gap: 12 },
+  sectionLabel: {
+    color: MUTED,
+    fontFamily: FONT,
+    fontSize: 10,
+    fontWeight: "400",
+    letterSpacing: 0.6,
+    lineHeight: 14,
+  },
+  tf: { alignItems: "center", gap: 6, paddingTop: 4 },
+  tfBar: { backgroundColor: "transparent", borderRadius: 1, height: 2 },
+  tfBarOn: { backgroundColor: INK },
+  tfLabel: {
+    color: SECONDARY,
+    fontFamily: FONT,
+    fontSize: 11,
+    fontWeight: "400",
+    letterSpacing: 0.6,
+    lineHeight: 16,
+  },
+  tfLabelActive: { color: INK },
+  tfRow: {
+    borderTopColor: BORDER,
+    borderTopWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
-    gap: 12,
+    gap: 16,
+    paddingHorizontal: 16,
   },
-  rowDetail: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
-  rowMain: { flex: 1, gap: 2 },
-  rowRight: { alignItems: "flex-end", gap: 6 },
-  rowTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
-  segmented: {
-    backgroundColor: CARD_SOFT,
-    borderRadius: RADIUS.pill,
-    flexDirection: "row",
-    padding: 4,
-  },
-  segment: {
-    alignItems: "center",
-    borderRadius: RADIUS.pill,
-    flex: 1,
+  volume: {
+    borderTopColor: BORDER,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    marginTop: 12,
+    paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  segmentActive: { backgroundColor: CARD },
-  segmentLabel: { color: MUTED, fontSize: 13, fontWeight: "600", lineHeight: 18 },
-  segmentLabelActive: { color: INK, fontSize: 13, fontWeight: "700", lineHeight: 18 },
-  shortBlock: { backgroundColor: DOWN },
-  symbol: { color: INK, fontSize: 20, fontWeight: "800", letterSpacing: -0.4, lineHeight: 28 },
-  tfActive: { backgroundColor: INK },
-  tfChip: {
-    alignItems: "center",
-    borderRadius: RADIUS.pill,
-    flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  tfIdle: { backgroundColor: CARD, borderColor: BORDER, borderWidth: 1 },
-  tfLabel: { color: SECONDARY, fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  tfLabelActive: { color: PAPER },
-  up: { color: UP },
 });
 
 export default PairDetailScreen;

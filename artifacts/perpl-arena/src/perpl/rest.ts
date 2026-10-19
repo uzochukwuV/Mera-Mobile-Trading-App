@@ -30,6 +30,14 @@ export interface KeyMaterial {
   privateKey: Buffer;
 }
 
+export function privateKeyFromHex(value: string): Buffer {
+  const hex = value.replace(/^0x/i, '');
+  if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
+    throw new Error('Perpl private key must be 64 hex characters (32 bytes)');
+  }
+  return Buffer.from(hex, 'hex');
+}
+
 export class PerplApiError extends Error {
   constructor(
     readonly status: number,

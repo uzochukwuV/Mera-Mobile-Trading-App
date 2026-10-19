@@ -1,28 +1,9 @@
-import type { ReactElement } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ReactElement } from "react";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { tintForName } from "./coinMeta";
-import {
-  BG,
-  BORDER,
-  CARD,
-  DOWN,
-  INK,
-  MUTED,
-  PAPER,
-  RADIUS,
-  SECONDARY,
-  UP,
-} from "./homeTheme";
-import type { DiscoverProps } from "./types";
+import { BG, BORDER, CARD, DOWN, FONT, INK, MUTED, PAPER, RADIUS, SECONDARY, UP } from "./homeTheme";
+import { DiscoverProps } from "./types";
 
 const SORT_OPTIONS = ["PnL", "24h", "Win rate", "Sharpe", "Followers"] as const;
 
@@ -177,35 +158,36 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 46,
   },
-  avatarText: { fontSize: 17, fontWeight: "700" },
+  avatarText: { fontFamily: FONT, fontSize: 17, fontWeight: "400" },
   chip: {
     alignItems: "center",
     borderRadius: RADIUS.pill,
     justifyContent: "center",
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   chipActive: { backgroundColor: INK },
-  chipActiveLabel: { color: PAPER, fontSize: 13, fontWeight: "700", lineHeight: 18 },
+  chipActiveLabel: { fontFamily: FONT, color: PAPER, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   chipInactive: { backgroundColor: CARD },
-  chipInactiveLabel: { color: SECONDARY, fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  chipInactiveLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   chips: { flexDirection: "row", gap: 8, paddingHorizontal: 20 },
   down: { color: DOWN },
-  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
-  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
-  followers: { color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 19 },
+  emptyBody: { fontFamily: FONT, color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  emptyTitle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 22, textAlign: "center" },
+  followers: { fontFamily: FONT, color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 19 },
   hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
-  handle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  handle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 20 },
   list: { marginHorizontal: 20 },
   loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
   pnl: {
+    fontFamily: FONT,
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "400",
     fontVariant: ["tabular-nums"],
     lineHeight: 20,
   },
   pressed: { opacity: 0.85 },
-  rank: { color: MUTED, fontSize: 13, fontWeight: "600", width: 20 },
+  rank: { fontFamily: FONT, color: MUTED, fontSize: 13, fontWeight: "400", width: 20 },
   retry: {
     alignItems: "center",
     backgroundColor: CARD,
@@ -214,17 +196,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
-  retryLabel: { color: INK, fontSize: 14, fontWeight: "600" },
+  retryLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400" },
   row: {
     alignItems: "center",
     flexDirection: "row",
     gap: 12,
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
-  rowMain: { flex: 1, gap: 2 },
-  rowRight: { alignItems: "flex-end", gap: 2 },
+  rowMain: { flex: 1, gap: 4 },
+  rowRight: { alignItems: "flex-end", gap: 4 },
   screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 12, paddingBottom: 28, paddingTop: 6 },
+  scroll: { gap: 12, paddingBottom: 28, paddingTop: 8 },
   header: {
     alignItems: "center",
     flexDirection: "row",
@@ -232,7 +214,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
-  headerTitle: { color: INK, fontSize: 26, fontWeight: "700", lineHeight: 32 },
+  headerTitle: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", lineHeight: 32 },
   count: {
     alignItems: "center",
     backgroundColor: CARD,
@@ -244,9 +226,9 @@ const styles = StyleSheet.create({
     minWidth: 28,
     paddingHorizontal: 8,
   },
-  countLabel: { color: SECONDARY, fontSize: 13, fontWeight: "700" },
+  countLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 13, fontWeight: "400" },
   up: { color: UP },
-  winRate: { color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 19 },
+  winRate: { fontFamily: FONT, color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 19 },
 });
 
 export default DiscoverScreen;

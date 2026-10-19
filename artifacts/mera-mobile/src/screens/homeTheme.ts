@@ -1,48 +1,75 @@
-// Pera design system — achromatic canvas, electric indigo accent.
+// Pera design system — warm paper canvas, highlighter accent.
 //
-// Pure white surfaces, black text, one accent. Hierarchy comes from
-// whitespace, weight contrast, and scale — not borders or shadows.
-// Elevation is a single soft drop shadow, used sparingly.
+// The palette is achromatic plus exactly one chromatic accent:
 //
-// Type scale (figmaSans / system):
-//   display  34/800  hero values (balances, marks)
-//   heading  26/700  screen titles
-//   section  18/700  content group titles
-//   body     15/400  important information
-//   support  13/400  secondary details
-//   micro    11/500  nonessential metadata
+//   Paper      #ffffff  card surfaces, reversed text on dark
+//   Bone       #f4f2f0  the page canvas, subtle washes
+//   Ink        #0c0a08  primary text, headings, dark surfaces
+//   Obsidian   #1a1919  dark panels, nav bar
+//   Ash        #6d6c6b  secondary text, hushed captions
+//   Hairline   #e5e7eb  borders and dividers
+//   Smoke      #d3d3d3  muted borders, skeletons
+//   Highlighter #e4f222 primary action, live counters, highlights
 //
-// Spacing is 8pt (4pt where necessary). Screen padding 20. Controls are
-// pill-shaped (radius 9999); cards 20; sheets 24.
+// Hierarchy comes from size and tracking, not weight contrast: the
+// system uses a single weight (400) and the type scale below. Lausanne
+// is the intended face; the system sans (Inter on Android, SF on iOS)
+// is its documented substitute and needs no bundling.
+//
+// Elevation is a 1px hairline, not a shadow. `SHADOW_SOFT` is kept as
+// the name every screen already imports, but it now draws the hairline.
+//
+// Spacing is the 4px base unit, comfortable density. Screen padding 20.
+// Controls are pill-shaped (radius 9999); cards 20; sheets 24.
+
+import { Platform } from "react-native";
+
+/** Lausanne's documented substitute, bundled so Android and web agree. */
+export const FONT = "Inter";
+/** Menlo is iOS-only; Android and web fall back to their mono face. */
+export const MONO =
+  Platform.select({ ios: "Menlo", android: "monospace", default: "monospace" }) ??
+  "monospace";
 
 export const PAPER = "#FFFFFF";
-export const BG = "#FFFFFF";
+/** the page canvas */
+export const BG = "#F4F2F0";
 export const SHEET = "#FFFFFF";
 export const CARD = "#FFFFFF";
-export const CARD_SOFT = "#F4F4F5";
-export const BORDER = "#E4E4E7";
-export const INK = "#09090B";
-export const SECONDARY = "#52525B";
-export const MUTED = "#8E8E93";
+/** the subtle wash — one step off Paper */
+export const CARD_SOFT = "#F4F2F0";
+export const BONE = "#F4F2F0";
+export const BORDER = "#E5E7EB";
+export const HAIRLINE = "#E5E7EB";
+export const SMOKE = "#D3D3D3";
+export const INK = "#0C0A08";
+export const OBSIDIAN = "#1A1919";
+export const SECONDARY = "#6D6C6B";
+export const MUTED = "#6D6C6B";
 
-// Single accent. TEAL is kept as a legacy alias so existing imports keep
-// compiling; new code should use INDIGO.
-export const INDIGO = "#4D49FC";
+// The one chromatic accent. TEAL is a legacy alias so existing imports
+// keep compiling; new code should use INDIGO.
+export const INDIGO = "#E4F222";
 export const TEAL = INDIGO;
-export const INDIGO_SOFT = "rgba(77, 73, 252, 0.10)";
-export const ON_ACCENT = "#FFFFFF";
+export const INDIGO_SOFT = "rgba(228, 242, 34, 0.30)";
+/** yellow is a light fill: its ink is black, never white */
+export const ON_ACCENT = "#0C0A08";
 
-// Semantics — green/red only for trading meaning.
-export const UP = "#16A34A";
-export const UP_SOFT = "rgba(22, 163, 74, 0.12)";
-export const DOWN = "#DC2626";
-export const DOWN_SOFT = "rgba(220, 38, 38, 0.10)";
-export const AMBER = "#B45309";
-export const AMBER_SOFT = "rgba(180, 83, 9, 0.12)";
+// Trading meaning without a second hue: a rise is the primary voice,
+// a fall is the hushed one, and the sign and arrow carry the rest.
+// This is the strict reading of "one chromatic accent" — and it keeps
+// the accent meaning "act" rather than "up".
+export const UP = "#0C0A08";
+export const UP_SOFT = "#F4F2F0";
+export const DOWN = "#6D6C6B";
+export const DOWN_SOFT = "#F4F2F0";
+// Warnings are the accent used as a highlight, not a second colour.
+export const AMBER = "#0C0A08";
+export const AMBER_SOFT = "rgba(228, 242, 34, 0.45)";
 
 // Tint avatars.
-export const ACCENT = "#E9E8FF";
-export const ACCENT_INK = "#4D49FC";
+export const ACCENT = "#F4F2F0";
+export const ACCENT_INK = "#0C0A08";
 
 export const RADIUS = {
   pill: 9999,
@@ -59,20 +86,19 @@ export const SPACE = {
   xl: 32,
 } as const;
 
+// One weight (400). Sizes and tracking do the work.
 export const TYPE = {
-  display: { fontSize: 34, fontWeight: "800", lineHeight: 41 },
-  heading: { fontSize: 26, fontWeight: "700", lineHeight: 32 },
-  section: { fontSize: 18, fontWeight: "700", lineHeight: 24 },
-  body: { fontSize: 15, fontWeight: "400", lineHeight: 22 },
-  support: { fontSize: 13, fontWeight: "400", lineHeight: 19 },
-  micro: { fontSize: 11, fontWeight: "500", lineHeight: 14 },
+  display: { fontFamily: FONT, fontSize: 40, fontWeight: "400", lineHeight: 42, letterSpacing: -0.8 },
+  heading: { fontFamily: FONT, fontSize: 28, fontWeight: "400", lineHeight: 32, letterSpacing: -0.4 },
+  section: { fontFamily: FONT, fontSize: 20, fontWeight: "400", lineHeight: 26, letterSpacing: -0.2 },
+  body: { fontFamily: FONT, fontSize: 16, fontWeight: "400", lineHeight: 24 },
+  support: { fontFamily: FONT, fontSize: 13, fontWeight: "400", lineHeight: 20 },
+  micro: { fontFamily: FONT, fontSize: 10, fontWeight: "400", lineHeight: 14, letterSpacing: 0.18 },
 } as const;
 
-// The one elevation in the system: soft drop shadow for elevated cards.
+// The elevation primitive: a 1px hairline. Kept under the old name so
+// the screens that already spread it gain the new rule everywhere.
 export const SHADOW_SOFT = {
-  shadowColor: "#000000",
-  shadowOffset: { width: 0, height: 8 },
-  shadowOpacity: 0.08,
-  shadowRadius: 24,
-  elevation: 4,
+  borderColor: HAIRLINE,
+  borderWidth: 1,
 } as const;

@@ -1,21 +1,8 @@
-import type { ReactElement } from "react";
+import { ReactElement } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BG,
-  BORDER,
-  CARD,
-  DOWN,
-  INDIGO_SOFT,
-  INK,
-  MUTED,
-  ON_ACCENT,
-  RADIUS,
-  SECONDARY,
-  TEAL,
-  UP,
-} from "./homeTheme";
-import type { FundProps } from "./types";
+import { BG, BORDER, CARD, DOWN, FONT, INDIGO_SOFT, INK, MUTED, ON_ACCENT, RADIUS, SECONDARY, TEAL, UP } from "./homeTheme";
+import { FundProps } from "./types";
 
 export function FundScreen(props: FundProps = {}): ReactElement {
   const {
@@ -141,12 +128,13 @@ export function FundScreen(props: FundProps = {}): ReactElement {
 }
 
 const styles = StyleSheet.create({
-  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
-  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 4, paddingVertical: 4 },
+  backLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 15, fontWeight: "400", lineHeight: 20 },
   balance: {
     color: INK,
+    fontFamily: FONT,
     fontSize: 34,
-    fontWeight: "800",
+    fontWeight: "400",
     fontVariant: ["tabular-nums"],
     letterSpacing: -0.5,
     lineHeight: 41,
@@ -157,19 +145,19 @@ const styles = StyleSheet.create({
     borderColor: BORDER,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    gap: 6,
+    gap: 8,
     padding: 20,
   },
-  caption: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 1, lineHeight: 14 },
-  footnote: { color: MUTED, fontSize: 11, lineHeight: 14, textAlign: "center" },
-  doneLabel: { color: UP, fontSize: 14, fontWeight: "700", lineHeight: 20 },
-  errorLabel: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  caption: { fontFamily: FONT, color: MUTED, fontSize: 11, fontWeight: "400", letterSpacing: 1, lineHeight: 14 },
+  footnote: { fontFamily: FONT, color: MUTED, fontSize: 11, lineHeight: 14, textAlign: "center" },
+  doneLabel: { fontFamily: FONT, color: UP, fontSize: 14, fontWeight: "400", lineHeight: 20 },
+  errorLabel: { fontFamily: FONT, color: DOWN, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   oneClick: {
     backgroundColor: CARD,
     borderColor: BORDER,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    gap: 10,
+    gap: 12,
     padding: 16,
   },
   pressed: { opacity: 0.85 },
@@ -182,9 +170,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  primaryLabel: { color: ON_ACCENT, fontSize: 16, fontWeight: "600", lineHeight: 20 },
+  primaryLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 16, fontWeight: "400", lineHeight: 20 },
   screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
+  scroll: { gap: 16, padding: 20, paddingBottom: 32 },
   secondary: {
     alignItems: "center",
     backgroundColor: INDIGO_SOFT,
@@ -194,9 +182,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  secondaryLabel: { color: TEAL, fontSize: 16, fontWeight: "600", lineHeight: 20 },
-  stepBody: { color: MUTED, fontSize: 13, lineHeight: 19 },
-  stepMain: { flex: 1, gap: 2 },
+  secondaryLabel: { fontFamily: FONT, color: INK, fontSize: 16, fontWeight: "400", lineHeight: 20 },
+  stepBody: { fontFamily: FONT, color: MUTED, fontSize: 13, lineHeight: 19 },
+  stepMain: { flex: 1, gap: 4 },
   stepNumber: {
     alignItems: "center",
     backgroundColor: CARD,
@@ -207,11 +195,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 32,
   },
-  stepNumberLabel: { color: UP, fontSize: 14, fontWeight: "700" },
+  stepNumberLabel: { fontFamily: FONT, color: UP, fontSize: 14, fontWeight: "400" },
   stepRow: { alignItems: "flex-start", flexDirection: "row", gap: 12 },
-  stepTitle: { color: INK, fontSize: 15, fontWeight: "700", lineHeight: 20 },
-  subtitle: { color: SECONDARY, fontSize: 15, lineHeight: 22 },
-  title: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
+  stepTitle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 20 },
+  subtitle: { fontFamily: FONT, color: SECONDARY, fontSize: 15, lineHeight: 22 },
+  title: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", letterSpacing: -0.4, lineHeight: 32 },
 });
 
 export default FundScreen;

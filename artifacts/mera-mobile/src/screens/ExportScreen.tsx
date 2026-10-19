@@ -1,27 +1,9 @@
-import { useState, type ReactElement } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BG,
-  BORDER,
-  CARD,
-  CARD_SOFT,
-  DOWN,
-  DOWN_SOFT,
-  INK,
-  MUTED,
-  ON_ACCENT,
-  RADIUS,
-  SECONDARY,
-} from "./homeTheme";
+import { ReactElement, useState } from "react";
+import { BG, BORDER, CARD, CARD_SOFT, DOWN, DOWN_SOFT, FONT, INK, MONO, MUTED, ON_ACCENT, RADIUS, SECONDARY } from "./homeTheme";
 import { describeError, revealMnemonic } from "../wallet";
-import type { ExportProps } from "./types";
+import { ExportProps } from "./types";
 
 export function ExportScreen(props: ExportProps = {}): ReactElement {
   const { credentialId, onBack } = props;
@@ -149,8 +131,8 @@ export function ExportScreen(props: ExportProps = {}): ReactElement {
 }
 
 const styles = StyleSheet.create({
-  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
-  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 4, paddingVertical: 4 },
+  backLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 15, fontWeight: "400", lineHeight: 20 },
   card: {
     backgroundColor: CARD,
     borderColor: BORDER,
@@ -158,12 +140,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 16,
   },
-  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
-  error: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 18, textAlign: "center" },
+  emptyBody: { fontFamily: FONT, color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  error: { fontFamily: FONT, color: DOWN, fontSize: 13, fontWeight: "400", lineHeight: 18, textAlign: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   link: { alignItems: "center", paddingVertical: 8 },
-  linkLabel: { color: SECONDARY, fontSize: 14, fontWeight: "600" },
-  num: { color: MUTED, fontSize: 11, fontWeight: "600", minWidth: 18, textAlign: "right" },
+  linkLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 14, fontWeight: "400" },
+  num: { fontFamily: FONT, color: MUTED, fontSize: 11, fontWeight: "400", minWidth: 18, textAlign: "right" },
   pressed: { opacity: 0.6 },
   primary: {
     alignItems: "center",
@@ -174,9 +156,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  primaryLabel: { color: ON_ACCENT, fontSize: 16, fontWeight: "600", lineHeight: 20 },
+  primaryLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 16, fontWeight: "400", lineHeight: 20 },
   screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
+  scroll: { gap: 16, padding: 20, paddingBottom: 32 },
   secondary: {
     alignItems: "center",
     backgroundColor: CARD_SOFT,
@@ -184,10 +166,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 52,
     paddingHorizontal: 24,
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
-  secondaryLabel: { color: INK, fontSize: 14, fontWeight: "600", lineHeight: 20 },
-  title: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
+  secondaryLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400", lineHeight: 20 },
+  title: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", letterSpacing: -0.4, lineHeight: 32 },
   warning: {
     alignItems: "flex-start",
     backgroundColor: DOWN_SOFT,
@@ -195,10 +177,10 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 10,
-    padding: 14,
+    gap: 12,
+    padding: 16,
   },
-  warningText: { color: DOWN, flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 19 },
+  warningText: { fontFamily: FONT, color: DOWN, flex: 1, fontSize: 13, fontWeight: "400", lineHeight: 19 },
   word: {
     alignItems: "baseline",
     backgroundColor: CARD,
@@ -210,9 +192,9 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: 8,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
-  wordText: { color: INK, fontFamily: "Menlo", fontSize: 14 },
+  wordText: { color: INK, fontFamily: MONO, fontSize: 14 },
 });
 
 export default ExportScreen;

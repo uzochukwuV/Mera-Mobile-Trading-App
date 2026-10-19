@@ -1,7 +1,7 @@
-import type { ReactElement } from "react";
+import { ReactElement } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { CARD, CARD_SOFT, DOWN, INK, ON_ACCENT, RADIUS, SECONDARY, TEAL } from "./homeTheme";
+import { CARD, CARD_SOFT, DOWN, FONT, INK, ON_ACCENT, RADIUS, SECONDARY, TEAL } from "./homeTheme";
 
 type TopFilterBarProps = {
   onMenu?: () => void;
@@ -117,9 +117,9 @@ export function EmptyBlock({
 
 const styles = StyleSheet.create({
   empty: { gap: 4, padding: 8 },
-  emptyBody: { color: SECONDARY, fontSize: 13, lineHeight: 19 },
-  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22 },
-  iconButton: { padding: 6, position: "relative" },
+  emptyBody: { fontFamily: FONT, color: SECONDARY, fontSize: 13, lineHeight: 19 },
+  emptyTitle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 22 },
+  iconButton: { padding: 8, position: "relative" },
   menuDot: {
     backgroundColor: DOWN,
     borderRadius: RADIUS.pill,
@@ -129,30 +129,30 @@ const styles = StyleSheet.create({
     top: 4,
     width: 8,
   },
-  sectionAction: { color: TEAL, fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  sectionAction: { fontFamily: FONT, color: INK, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   sectionHead: {
     alignItems: "baseline",
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 8,
   },
-  sectionTitle: { color: INK, fontSize: 18, fontWeight: "700", lineHeight: 24 },
+  sectionTitle: { fontFamily: FONT, color: INK, fontSize: 18, fontWeight: "400", lineHeight: 24 },
   segment: {
     alignItems: "center",
     backgroundColor: CARD,
     borderRadius: RADIUS.pill,
     flex: 1,
     flexDirection: "row",
-    marginHorizontal: 10,
+    marginHorizontal: 12,
     padding: 4,
   },
   segmentActive: {
     backgroundColor: INK,
     borderRadius: RADIUS.pill,
-    paddingHorizontal: 18,
+    paddingHorizontal: 20,
     paddingVertical: 8,
   },
-  segmentActiveLabel: { color: ON_ACCENT, fontSize: 14, fontWeight: "700" },
+  segmentActiveLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 14, fontWeight: "400" },
   segmentChevron: {
     alignItems: "center",
     backgroundColor: CARD_SOFT,
@@ -161,13 +161,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 32,
   },
-  segmentIdle: { paddingHorizontal: 14, paddingVertical: 8 },
-  segmentIdleLabel: { color: SECONDARY, fontSize: 14, fontWeight: "500" },
+  segmentIdle: { paddingHorizontal: 16, paddingVertical: 8 },
+  segmentIdleLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 14, fontWeight: "400" },
   topBar: {
     alignItems: "center",
     flexDirection: "row",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   topRight: { alignItems: "center", flexDirection: "row", gap: 4 },
 });

@@ -1,27 +1,8 @@
-import { useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BG,
-  BORDER,
-  CARD,
-  INK,
-  MUTED,
-  RADIUS,
-  SECONDARY,
-  SHEET,
-  TEAL,
-  UP,
-} from "./homeTheme";
-import type { ReactElement } from "react";
-import type { StandingsEntry, TournamentStandingsProps } from "./types";
+import { ReactElement, useState } from "react";
+import { BG, BORDER, CARD, FONT, INK, MUTED, RADIUS, SECONDARY, SHEET, TEAL, UP } from "./homeTheme";
+import { StandingsEntry, TournamentStandingsProps } from "./types";
 
 function medal(rank: number): string | null {
   if (rank === 1) return "🥇";
@@ -68,7 +49,7 @@ export function TournamentStandingsScreen(
 
         {loading && entries.length === 0 ? (
           <View style={styles.loading}>
-            <ActivityIndicator size="large" color={TEAL} />
+            <ActivityIndicator size="large" color={INK} />
             <Text style={styles.emptyBody}>Loading standings…</Text>
           </View>
         ) : loadError && entries.length === 0 ? (
@@ -137,19 +118,19 @@ export type { StandingsEntry };
 
 const styles = StyleSheet.create({
   screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 12, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 6 },
+  scroll: { gap: 12, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 8 },
   back: {
     alignItems: "center",
     flexDirection: "row",
-    gap: 2,
-    paddingVertical: 6,
+    gap: 4,
+    paddingVertical: 8,
   },
-  backLabel: { color: SECONDARY, fontSize: 14, fontWeight: "500" },
-  title: { color: INK, fontSize: 26, fontWeight: "700", lineHeight: 32 },
-  subtitle: { color: MUTED, fontSize: 13, fontWeight: "500", lineHeight: 18 },
+  backLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 14, fontWeight: "400" },
+  title: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", lineHeight: 32 },
+  subtitle: { fontFamily: FONT, color: MUTED, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
-  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22 },
-  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  emptyTitle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 22 },
+  emptyBody: { fontFamily: FONT, color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
   retry: {
     alignItems: "center",
     backgroundColor: CARD,
@@ -158,7 +139,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
-  retryLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
+  retryLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400" },
   card: {
     backgroundColor: SHEET,
     borderColor: BORDER,
@@ -172,16 +153,16 @@ const styles = StyleSheet.create({
     borderColor: BORDER,
     borderRadius: 20,
     borderWidth: 1,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
-  row: { alignItems: "center", flexDirection: "row", gap: 10, paddingVertical: 10 },
-  rank: { fontSize: 15, fontWeight: "700", minWidth: 40, color: INK },
-  rowMain: { flex: 1, gap: 2 },
-  handle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  detail: { color: MUTED, fontSize: 12, lineHeight: 16 },
-  score: { color: UP, fontSize: 14, fontWeight: "700" },
-  more: { alignItems: "center", paddingVertical: 10 },
-  moreLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
+  row: { alignItems: "center", flexDirection: "row", gap: 12, paddingVertical: 12 },
+  rank: { fontFamily: FONT, fontSize: 15, fontWeight: "400", minWidth: 40, color: INK },
+  rowMain: { flex: 1, gap: 4 },
+  handle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 20 },
+  detail: { fontFamily: FONT, color: MUTED, fontSize: 12, lineHeight: 16 },
+  score: { fontFamily: FONT, color: UP, fontSize: 14, fontWeight: "400" },
+  more: { alignItems: "center", paddingVertical: 12 },
+  moreLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400" },
 });

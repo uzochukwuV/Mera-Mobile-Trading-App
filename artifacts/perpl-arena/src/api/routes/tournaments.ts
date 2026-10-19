@@ -8,6 +8,7 @@ import { ApiError } from '../../lib/errors.js';
 import {
   asyncRoute,
   requireAuth,
+  uuidParam,
   validateBody,
   type AuthedRequest,
 } from '../middleware.js';
@@ -58,6 +59,7 @@ tournamentsRouter.get(
 // GET /tournaments/:id — detail + current standings.
 tournamentsRouter.get(
   '/:id',
+  uuidParam('id', 'tournament'),
   asyncRoute(async (req: Request, res: Response) => {
     const { rows } = await pool.query(
       `select * from tournaments where id = $1`,
@@ -79,6 +81,7 @@ tournamentsRouter.get(
 // POST /tournaments/:id/join — enter with the caller's live equity.
 tournamentsRouter.post(
   '/:id/join',
+  uuidParam('id', 'tournament'),
   validateBody(z.object({})),
   asyncRoute(async (req: Request, res: Response) => {
     const { userId } = req as AuthedRequest;

@@ -113,13 +113,28 @@ export interface RawMarketConfig {
 }
 
 export interface Context {
-  chain: { id: number; [key: string]: unknown };
+  chain: {
+    id?: number;
+    chain_id?: number;
+    name?: string;
+    [key: string]: unknown;
+  };
   instances: Array<{
     id: number;
-    min_account_open_amount?: number;
+    address?: string;
+    collateral_token_id?: number;
+    min_account_open_amount?: string | number;
+    min_deposit_amount?: string | number;
     [key: string]: unknown;
   }>;
-  tokens: Array<{ id: number; [key: string]: unknown }>;
+  tokens: Array<{
+    id: number;
+    address?: string;
+    symbol?: string;
+    name?: string;
+    decimals?: number;
+    [key: string]: unknown;
+  }>;
   markets: RawMarketConfig[];
 }
 

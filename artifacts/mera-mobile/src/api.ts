@@ -264,12 +264,17 @@ type ApiNotification = {
   created_at: string;
 };
 
+/** One recorded balance reading: `t` is epoch ms, `e` is aUSD equity. */
+export type EquityPoint = { t: number; e: number };
+
 type DashboardData = {
   equity: string | null;
   equityAt: string | null;
   balance: number | null;
   locked: number | null;
   walletAt: string | null;
+  /** Oldest → newest, downsampled server-side. Empty when unrecorded. */
+  equitySeries: EquityPoint[];
   positions: ApiPosition[];
   activeCopySettings: ApiCopySetting[];
   realizedPnlToday: number;
@@ -283,6 +288,7 @@ async function getDashboard(): Promise<DashboardData> {
     balance?: number | string | null;
     locked?: number | string | null;
     walletAt?: string | null;
+    equitySeries?: { t?: string | number; e?: number | string }[];
     positions?: ApiPosition[];
     activeCopySettings?: ApiCopySetting[];
     realizedPnlToday?: number;
@@ -298,6 +304,18 @@ async function getDashboard(): Promise<DashboardData> {
     balance: toFiniteNumber(body.balance),
     locked: toFiniteNumber(body.locked),
     walletAt: body.walletAt ?? null,
+    // Drop any point without a usable time or value rather than letting
+    // a NaN reach the chart's maths, where it would poison the whole path.
+    equitySeries: (body.equitySeries ?? []).reduce<EquityPoint[]>(
+      (out, point) => {
+        const t =
+          typeof point.t === "number" ? point.t : Date.parse(point.t ?? "");
+        const e = toFiniteNumber(point.e);
+        if (Number.isFinite(t) && e !== null) out.push({ t, e });
+        return out;
+      },
+      [],
+    ),
     positions: body.positions ?? [],
     activeCopySettings: body.activeCopySettings ?? [],
     realizedPnlToday: body.realizedPnlToday ?? 0,
@@ -1398,6 +1416,7 @@ type LiveDashboard = {
   equity: string;
   available: string;
   locked: string;
+  equitySeries: EquityPoint[];
   realizedPnlToday: string;
   realizedPnlUp: boolean;
   unread: number;
@@ -1530,6 +1549,7 @@ async function loadLiveDashboard(address?: string): Promise<{
         : (workerBalance ?? ausdLabel),
       available: workerBalance ?? ausdLabel,
       locked: workerLocked ?? formatMoney(inPositions),
+      equitySeries: dashboard?.equitySeries ?? [],
       realizedPnlToday: formatSigned(realized),
       realizedPnlUp: realized >= 0,
       unread: dashboard?.unreadNotifications.length ?? 0,

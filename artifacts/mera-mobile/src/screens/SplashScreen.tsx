@@ -1,8 +1,8 @@
-import type { ReactElement } from "react";
+import { ReactElement } from "react";
 import { Image, StatusBar, StyleSheet, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { BORDER, PAPER } from "./homeTheme";
-import type { SplashProps } from "./types";
+import { SplashProps } from "./types";
 
 const WAVE = BORDER;
 

@@ -1,33 +1,11 @@
-import { useEffect, useState, type ReactElement } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { ApiError, getRiskEvents, orderTimeLabel, type RiskEvent } from "../api";
+import { ReactElement, useEffect, useState } from "react";
+import { ApiError, getRiskEvents, orderTimeLabel, RiskEvent } from "../api";
 import { tintForName } from "./coinMeta";
-import {
-  AMBER,
-  AMBER_SOFT,
-  BG,
-  BORDER,
-  CARD,
-  DOWN,
-  DOWN_SOFT,
-  INK,
-  MUTED,
-  RADIUS,
-  SECONDARY,
-  TEAL,
-  UP,
-  UP_SOFT,
-} from "./homeTheme";
-import type { CopyManagementProps, CopySettingRow } from "./types";
+import { AMBER, AMBER_SOFT, BG, BORDER, CARD, DOWN, DOWN_SOFT, FONT, INK, MUTED, RADIUS, SECONDARY, TEAL, UP, UP_SOFT } from "./homeTheme";
+import { CopyManagementProps, CopySettingRow } from "./types";
+import { Stop } from "react-native-svg";
 
 function StatusTag({ status }: { status: CopySettingRow["status"] }) {
   const active = status === "Active";
@@ -277,10 +255,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 44,
   },
-  avatarText: { fontSize: 17, fontWeight: "700" },
-  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
-  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  allocation: { color: MUTED, fontSize: 12, fontVariant: ["tabular-nums"], fontWeight: "400", lineHeight: 16 },
+  avatarText: { fontFamily: FONT, fontSize: 17, fontWeight: "400" },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 4, paddingVertical: 4 },
+  backLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 15, fontWeight: "400", lineHeight: 20 },
+  allocation: { fontFamily: FONT, color: MUTED, fontSize: 12, fontVariant: ["tabular-nums"], fontWeight: "400", lineHeight: 16 },
   card: {
     backgroundColor: CARD,
     borderColor: BORDER,
@@ -289,13 +267,13 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
   },
-  dangerBody: { color: MUTED, fontSize: 13, lineHeight: 19 },
-  dangerTitle: { color: INK, fontSize: 18, fontWeight: "700", lineHeight: 24 },
+  dangerBody: { fontFamily: FONT, color: MUTED, fontSize: 13, lineHeight: 19 },
+  dangerTitle: { fontFamily: FONT, color: INK, fontSize: 18, fontWeight: "400", lineHeight: 24 },
   down: { color: DOWN },
-  emptyBody: { color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
-  emptyTitle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 22, textAlign: "center" },
-  footnote: { color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16, textAlign: "center" },
-  handle: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  emptyBody: { fontFamily: FONT, color: MUTED, fontSize: 13, lineHeight: 19, textAlign: "center" },
+  emptyTitle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 22, textAlign: "center" },
+  footnote: { fontFamily: FONT, color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16, textAlign: "center" },
+  handle: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 20 },
   kill: {
     alignItems: "center",
     borderColor: DOWN,
@@ -307,7 +285,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     width: "100%",
   },
-  killLabel: { color: DOWN, fontSize: 16, fontWeight: "600", lineHeight: 22 },
+  killLabel: { fontFamily: FONT, color: DOWN, fontSize: 16, fontWeight: "400", lineHeight: 22 },
   loading: { alignItems: "center", gap: 12, paddingVertical: 48 },
   mini: {
     alignItems: "center",
@@ -317,11 +295,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     minHeight: 44,
     paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
   miniDanger: { backgroundColor: "transparent", borderColor: DOWN },
   miniGhost: { backgroundColor: "transparent", borderColor: BORDER },
-  miniLabel: { fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  miniLabel: { fontFamily: FONT, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   miniLabelDanger: { color: DOWN },
   miniLabelGhost: { color: SECONDARY },
   notice: {
@@ -331,7 +309,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 12,
   },
-  noticeText: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 18, textAlign: "center" },
+  noticeText: { fontFamily: FONT, color: DOWN, fontSize: 13, fontWeight: "400", lineHeight: 18, textAlign: "center" },
   pressed: { opacity: 0.6 },
   retry: {
     alignItems: "center",
@@ -341,39 +319,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
-  retryLabel: { color: TEAL, fontSize: 14, fontWeight: "600" },
-  rowMain: { flex: 1, gap: 2 },
+  retryLabel: { fontFamily: FONT, color: INK, fontSize: 14, fontWeight: "400" },
+  rowMain: { flex: 1, gap: 4 },
   rowTop: { alignItems: "center", flexDirection: "row", gap: 12 },
   hairline: { backgroundColor: BORDER, height: 1, width: "100%" },
   eventRow: {
     alignItems: "flex-start",
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
     paddingVertical: 8,
   },
   eventType: {
     color: INK,
+    fontFamily: FONT,
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "400",
     lineHeight: 18,
     textTransform: "capitalize",
   },
-  eventDetail: { color: MUTED, fontSize: 12, lineHeight: 16 },
-  eventTime: { color: MUTED, fontSize: 12, lineHeight: 16 },
+  eventDetail: { fontFamily: FONT, color: MUTED, fontSize: 12, lineHeight: 16 },
+  eventTime: { fontFamily: FONT, color: MUTED, fontSize: 12, lineHeight: 16 },
   screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
+  scroll: { gap: 16, padding: 20, paddingBottom: 32 },
   tag: {
     alignItems: "center",
     alignSelf: "flex-start",
     borderRadius: RADIUS.pill,
     flexDirection: "row",
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
   tagDot: { borderRadius: RADIUS.pill, height: 6, width: 6 },
-  tagLabel: { fontSize: 12, fontWeight: "600", lineHeight: 15 },
-  title: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
+  tagLabel: { fontFamily: FONT, fontSize: 12, fontWeight: "400", lineHeight: 15 },
+  title: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", letterSpacing: -0.4, lineHeight: 32 },
   up: { color: UP },
 });
 

@@ -9,6 +9,7 @@ import { ApiError } from '../../lib/errors.js';
 import {
   asyncRoute,
   requireAuth,
+  uuidParam,
   validateBody,
   type AuthedRequest,
 } from '../middleware.js';
@@ -35,6 +36,7 @@ const riskSettingsSchema = z.object({
 // Requires a trade-scoped enrolled key and a followed leader.
 copyRouter.put(
   '/:leaderId',
+  uuidParam('leaderId', 'leader'),
   validateBody(riskSettingsSchema),
   asyncRoute(async (req: Request, res: Response) => {
     const { userId } = req as AuthedRequest;
@@ -128,6 +130,7 @@ copyRouter.get(
 // DELETE /copy/:leaderId — stop copying (keeps history).
 copyRouter.delete(
   '/:leaderId',
+  uuidParam('leaderId', 'leader'),
   asyncRoute(async (req: Request, res: Response) => {
     const { userId } = req as AuthedRequest;
     await pool.query(

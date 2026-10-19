@@ -1,19 +1,8 @@
-import type { ReactElement } from "react";
+import { ReactElement } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  BG,
-  BORDER,
-  CARD,
-  DOWN,
-  DOWN_SOFT,
-  INK,
-  MUTED,
-  ON_ACCENT,
-  RADIUS,
-  SECONDARY,
-} from "./homeTheme";
-import type { WithdrawProps } from "./types";
+import { BG, BORDER, CARD, DOWN, DOWN_SOFT, FONT, INK, MUTED, ON_ACCENT, RADIUS, SECONDARY } from "./homeTheme";
+import { WithdrawProps } from "./types";
 
 /**
  * Withdrawals are wallet-signed and irreversible. The contract call is
@@ -73,12 +62,13 @@ export function WithdrawScreen(props: WithdrawProps = {}): ReactElement {
 }
 
 const styles = StyleSheet.create({
-  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 2, paddingVertical: 4 },
-  backLabel: { color: SECONDARY, fontSize: 15, fontWeight: "600", lineHeight: 20 },
+  back: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 4, paddingVertical: 4 },
+  backLabel: { fontFamily: FONT, color: SECONDARY, fontSize: 15, fontWeight: "400", lineHeight: 20 },
   balance: {
     color: INK,
+    fontFamily: FONT,
     fontSize: 34,
-    fontWeight: "800",
+    fontWeight: "400",
     fontVariant: ["tabular-nums"],
     letterSpacing: -0.5,
     lineHeight: 41,
@@ -89,11 +79,11 @@ const styles = StyleSheet.create({
     borderColor: BORDER,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    gap: 6,
+    gap: 8,
     padding: 20,
   },
-  caption: { color: MUTED, fontSize: 11, fontWeight: "600", letterSpacing: 1, lineHeight: 14 },
-  footnote: { color: MUTED, fontSize: 11, lineHeight: 14, textAlign: "center" },
+  caption: { fontFamily: FONT, color: MUTED, fontSize: 11, fontWeight: "400", letterSpacing: 1, lineHeight: 14 },
+  footnote: { fontFamily: FONT, color: MUTED, fontSize: 11, lineHeight: 14, textAlign: "center" },
   pressed: { opacity: 0.85 },
   primary: {
     alignItems: "center",
@@ -104,11 +94,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 16,
   },
-  primaryLabel: { color: ON_ACCENT, fontSize: 16, fontWeight: "600", lineHeight: 20 },
+  primaryLabel: { fontFamily: FONT, color: ON_ACCENT, fontSize: 16, fontWeight: "400", lineHeight: 20 },
   screen: { backgroundColor: BG, flex: 1 },
-  scroll: { gap: 14, padding: 20, paddingBottom: 32 },
-  subtitle: { color: SECONDARY, fontSize: 15, lineHeight: 22 },
-  title: { color: INK, fontSize: 26, fontWeight: "700", letterSpacing: -0.4, lineHeight: 32 },
+  scroll: { gap: 16, padding: 20, paddingBottom: 32 },
+  subtitle: { fontFamily: FONT, color: SECONDARY, fontSize: 15, lineHeight: 22 },
+  title: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", letterSpacing: -0.4, lineHeight: 32 },
   warning: {
     alignItems: "flex-start",
     backgroundColor: DOWN_SOFT,
@@ -116,10 +106,10 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 10,
-    padding: 14,
+    gap: 12,
+    padding: 16,
   },
-  warningText: { color: DOWN, flex: 1, fontSize: 13, fontWeight: "600", lineHeight: 19 },
+  warningText: { fontFamily: FONT, color: DOWN, flex: 1, fontSize: 13, fontWeight: "400", lineHeight: 19 },
 });
 
 export default WithdrawScreen;

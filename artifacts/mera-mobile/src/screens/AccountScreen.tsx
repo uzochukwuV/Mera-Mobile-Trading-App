@@ -1,30 +1,9 @@
-import { useEffect, useState, type ReactElement } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import {
-  ACCENT,
-  ACCENT_INK,
-  BG,
-  BORDER,
-  CARD,
-  CARD_SOFT,
-  DOWN,
-  INK,
-  MUTED,
-  PAPER,
-  RADIUS,
-  SECONDARY,
-  SHEET,
-} from "./homeTheme";
+import { Key, ReactElement, useEffect, useState } from "react";
+import { ACCENT, ACCENT_INK, BG, BORDER, CARD, CARD_SOFT, DOWN, FONT, INK, MONO, MUTED, PAPER, RADIUS, SECONDARY, SHEET } from "./homeTheme";
 import { PillButton } from "./ui";
-import type { AccountProps } from "./types";
+import { AccountProps } from "./types";
 
 export function AccountScreen(props: AccountProps = {}): ReactElement {
   const {
@@ -292,7 +271,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 8,
   },
-  headerTitle: { color: INK, fontSize: 26, fontWeight: "700", lineHeight: 32 },
+  headerTitle: { fontFamily: FONT, color: INK, fontSize: 26, fontWeight: "400", lineHeight: 32 },
   iconButton: { padding: 4 },
   scroll: { gap: 16, paddingBottom: 28, paddingHorizontal: 20, paddingTop: 8 },
   profileCard: {
@@ -303,7 +282,7 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
   },
-  profileRow: { alignItems: "center", flexDirection: "row", gap: 14 },
+  profileRow: { alignItems: "center", flexDirection: "row", gap: 16 },
   avatar: {
     alignItems: "center",
     backgroundColor: ACCENT,
@@ -312,23 +291,24 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 56,
   },
-  avatarText: { color: ACCENT_INK, fontSize: 22, fontWeight: "800", lineHeight: 28 },
+  avatarText: { fontFamily: FONT, color: ACCENT_INK, fontSize: 22, fontWeight: "400", lineHeight: 28 },
   profileMain: { flex: 1, gap: 4 },
-  handle: { color: INK, fontSize: 20, fontWeight: "700", lineHeight: 26 },
-  address: { color: SECONDARY, fontFamily: "Menlo", fontSize: 13, lineHeight: 18 },
-  caption: { color: MUTED, fontSize: 12, fontWeight: "500", lineHeight: 16 },
-  handleForm: { gap: 10, marginTop: 12 },
+  handle: { fontFamily: FONT, color: INK, fontSize: 20, fontWeight: "400", lineHeight: 26 },
+  address: { color: SECONDARY, fontFamily: MONO, fontSize: 13, lineHeight: 18 },
+  caption: { fontFamily: FONT, color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
+  handleForm: { gap: 12, marginTop: 12 },
   handleInput: {
     backgroundColor: SHEET,
     borderColor: BORDER,
     borderRadius: RADIUS.input,
     borderWidth: 1,
     color: INK,
+    fontFamily: FONT,
     fontSize: 16,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
   },
-  handleError: { color: DOWN, fontSize: 13, fontWeight: "600", lineHeight: 18 },
+  handleError: { fontFamily: FONT, color: DOWN, fontSize: 13, fontWeight: "400", lineHeight: 18 },
   card: {
     backgroundColor: CARD,
     borderColor: BORDER,
@@ -337,9 +317,9 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 16,
   },
-  cardHead: { gap: 2 },
-  cardTitle: { color: INK, fontSize: 18, fontWeight: "700", lineHeight: 24 },
-  cardHint: { color: MUTED, fontSize: 12, lineHeight: 16 },
+  cardHead: { gap: 4 },
+  cardTitle: { fontFamily: FONT, color: INK, fontSize: 18, fontWeight: "400", lineHeight: 24 },
+  cardHint: { fontFamily: FONT, color: MUTED, fontSize: 12, lineHeight: 16 },
   keyRow: {
     alignItems: "center",
     backgroundColor: SHEET,
@@ -347,22 +327,23 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.input,
     borderWidth: 1,
     flexDirection: "row",
-    gap: 10,
+    gap: 12,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
-  keyLabel: { color: INK, flex: 1, fontSize: 14, fontWeight: "600", lineHeight: 20 },
-  revoke: { color: DOWN, fontSize: 13, fontWeight: "600" },
+  keyLabel: { fontFamily: FONT, color: INK, flex: 1, fontSize: 14, fontWeight: "400", lineHeight: 20 },
+  revoke: { fontFamily: FONT, color: DOWN, fontSize: 13, fontWeight: "400" },
   bioInput: {
     backgroundColor: SHEET,
     borderColor: BORDER,
     borderRadius: RADIUS.input,
     borderWidth: 1,
     color: INK,
+    fontFamily: FONT,
     fontSize: 14,
     lineHeight: 20,
     minHeight: 64,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 12,
     textAlignVertical: "top",
   },
@@ -379,7 +360,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     paddingHorizontal: 12,
-    paddingVertical: 14,
+    paddingVertical: 16,
   },
   settingIcon: {
     alignItems: "center",
@@ -389,9 +370,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     width: 40,
   },
-  settingMain: { flex: 1, gap: 2 },
-  settingLabel: { color: INK, fontSize: 15, fontWeight: "600", lineHeight: 20 },
-  settingSub: { color: MUTED, fontSize: 12, fontWeight: "500", lineHeight: 16 },
+  settingMain: { flex: 1, gap: 4 },
+  settingLabel: { fontFamily: FONT, color: INK, fontSize: 15, fontWeight: "400", lineHeight: 20 },
+  settingSub: { fontFamily: FONT, color: MUTED, fontSize: 12, fontWeight: "400", lineHeight: 16 },
   toggleRow: {
     alignItems: "center",
     flexDirection: "row",
@@ -401,7 +382,7 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.pill,
     height: 30,
     justifyContent: "center",
-    paddingHorizontal: 3,
+    paddingHorizontal: 4,
     width: 52,
   },
   toggleOff: { backgroundColor: BORDER },
