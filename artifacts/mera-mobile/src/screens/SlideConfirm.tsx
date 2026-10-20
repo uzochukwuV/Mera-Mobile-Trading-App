@@ -84,6 +84,12 @@ export function SlideConfirm({
   travelRef.current = travel;
   const disabledRef = useRef(disabled);
   disabledRef.current = disabled;
+  // The responder below is built once and must not close over a render's
+  // props. `onConfirm` is an inline arrow in the app and is re-created on
+  // every render — a mount-time copy would fire with the state the screen
+  // opened with (an empty ticket amount, in the trade ticket's case).
+  const onConfirmRef = useRef(onConfirm);
+  onConfirmRef.current = onConfirm;
 
   // the words fade as the capsule comes for them; the block reaches
   // zero at 55% of the travel, and the capsule's edge arrives at the
@@ -122,7 +128,7 @@ export function SlideConfirm({
     finished.current = true;
     setDone(true);
     cur.current = 0;
-    onConfirm();
+    onConfirmRef.current();
     const ms = 420 - (clamp(speed, 0, 100) / 100) * 220;
     // two values, one duration and one curve. The block pins the
     // right edge by arithmetic rather than by two animations
