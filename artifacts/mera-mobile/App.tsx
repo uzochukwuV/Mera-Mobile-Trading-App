@@ -84,6 +84,7 @@ import {
   unlockStoredWallet,
 } from "./src/wallet";
 import { clearSession, ensureSession } from "./src/session";
+import { parseAmount } from "./src/amount";
 import { feed } from "./src/realtime";
 import { toViemAccount } from "@category-labs/mera/viem";
 import { clearStoredAccount, loadStoredAccount } from "./src/storage";
@@ -898,7 +899,7 @@ function App() {
   // S11: follow (required) then PUT copy settings. No trade key → S3.
   async function handleStartCopy(): Promise<void> {
     if (!selectedLeaderId) return;
-    const amount = Number(allocation);
+    const amount = parseAmount(allocation);
     if (!Number.isFinite(amount) || amount <= 0) {
       setCopyError("Enter an allocation amount in aUSD.");
       return;
@@ -977,7 +978,7 @@ function App() {
   // S8: ticket submit (live or dry run). Idempotency keys make retries safe.
   async function handleTicketSubmit(dryRun: boolean): Promise<void> {
     if (selectedMarketId === undefined) return;
-    const size = Number(ticketSize);
+    const size = parseAmount(ticketSize);
     if (!Number.isFinite(size) || size <= 0) {
       setTicketError("Enter an amount greater than zero.");
       return;
@@ -1218,7 +1219,7 @@ function App() {
 
   async function handleSaveCopySettings(form: CopySettingsForm): Promise<void> {
     if (!editingCopy) return;
-    const amount = Number(form.allocation);
+    const amount = parseAmount(form.allocation);
     if (!Number.isFinite(amount) || amount <= 0) {
       setEditError("Enter an allocation amount in aUSD.");
       return;
@@ -1228,11 +1229,11 @@ function App() {
     try {
       await putCopySettings(editingCopy.leaderId, {
         allocationUsd: amount,
-        maxLeverage: Number(form.maxLeverage) || 3,
-        maxNotionalPerTradeUsd: Number(form.maxNotional) || 5000,
-        dailyLossLimitUsd: Number(form.dailyLoss) || 50,
-        slippageBps: Number(form.slippage) || 50,
-        stopLossBps: Number(form.stopLoss) || 2000,
+        maxLeverage: parseAmount(form.maxLeverage) || 3,
+        maxNotionalPerTradeUsd: parseAmount(form.maxNotional) || 5000,
+        dailyLossLimitUsd: parseAmount(form.dailyLoss) || 50,
+        slippageBps: parseAmount(form.slippage) || 50,
+        stopLossBps: parseAmount(form.stopLoss) || 2000,
       });
       await loadCopies(true);
       await loadDashboard(currentAddress(), true);

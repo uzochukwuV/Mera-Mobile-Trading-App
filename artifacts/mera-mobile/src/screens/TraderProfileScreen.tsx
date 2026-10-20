@@ -4,6 +4,7 @@ import { coinColor } from "./coinMeta";
 import { ReactElement, useState } from "react";
 import { BG, BORDER, CARD, CARD_SOFT, DOWN, DOWN_SOFT, FONT, INK, MUTED, ON_ACCENT, PAPER, RADIUS, SECONDARY, SHEET, TEAL, UP, UP_SOFT } from "./homeTheme";
 import { PositionRow, TraderProfileProps } from "./types";
+import { normalizeAmountInput } from "../amount";
 
 const PRESETS = ["100", "250", "500"] as const;
 
@@ -242,7 +243,9 @@ export function TraderProfileScreen(props: TraderProfileProps = {}): ReactElemen
                 editable={!busy}
                 keyboardType="decimal-pad"
                 onBlur={() => setAllocationFocused(false)}
-                onChangeText={(value) => onAllocationChange?.(value)}
+                onChangeText={(value) =>
+                  onAllocationChange?.(normalizeAmountInput(value))
+                }
                 onFocus={() => setAllocationFocused(true)}
                 placeholder="0.00"
                 placeholderTextColor={MUTED}

@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { ReactElement, useState } from "react";
 import { BG, BORDER, CARD, DOWN, DOWN_SOFT, FONT, INK, MUTED, ON_ACCENT, PAPER, RADIUS, SECONDARY, SHEET, TEAL } from "./homeTheme";
 import { CopySettingsForm, CopySettingsProps } from "./types";
+import { normalizeAmountInput } from "../amount";
 
 function Field({
   label,
@@ -21,7 +22,7 @@ function Field({
       <TextInput
         accessibilityLabel={label}
         keyboardType="decimal-pad"
-        onChangeText={onChange}
+        onChangeText={(value) => onChange(normalizeAmountInput(value))}
         placeholder="0"
         placeholderTextColor={MUTED}
         style={styles.input}

@@ -34,6 +34,7 @@ import { LiquidToggle } from "./LiquidToggle";
 import { SlideConfirm } from "./SlideConfirm";
 import { ToastStack, useToasts } from "./ToastStack";
 import type { TradeTicketProps } from "./types";
+import { normalizeAmountInput, parseAmount } from "../amount";
 
 // A ladder, not a fixed list: BTC on testnet caps near 6x, and the old
 // [5, 10, 15, 20] left a single 5X chip and no way to pick the actual
@@ -111,7 +112,7 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
 
   // Live notional from size × mark; fees are quoted server-side, unknown here.
   const markNum = Number(mark.replace(/,/g, ""));
-  const sizeNum = Number(size);
+  const sizeNum = parseAmount(size);
   const tradeValue =
     Number.isFinite(markNum) &&
     markNum > 0 &&
@@ -207,7 +208,7 @@ export function TradeTicketScreen(props: TradeTicketProps): ReactElement {
               editable={!busy}
               keyboardType="decimal-pad"
               onBlur={() => setFocused(false)}
-              onChangeText={(value) => onSizeChange?.(value)}
+              onChangeText={(value) => onSizeChange?.(normalizeAmountInput(value))}
               onFocus={() => setFocused(true)}
               placeholder="0"
               placeholderTextColor={MUTED}

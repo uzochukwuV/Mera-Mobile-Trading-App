@@ -5,6 +5,7 @@ import { coinColor, coinName, tintForName } from "./coinMeta";
 import { ReactElement, useEffect, useMemo, useRef, useState } from "react";
 import { AMBER, AMBER_SOFT, BG, BORDER, CARD, CARD_SOFT, DOWN, DOWN_SOFT, FONT, INDIGO, INDIGO_SOFT, INK, MONO, MUTED, ON_ACCENT, PAPER, RADIUS, SECONDARY, SHADOW_SOFT, SHEET, SMOKE, UP, UP_SOFT } from "./homeTheme";
 import { PillButton } from "./ui";
+import { normalizeAmountInput, parseAmount } from "../amount";
 import { PullToRefresh } from "./PullToRefresh";
 import { LabelInput } from "./LabelInput";
 import { AssetSwap } from "./AssetSwap";
@@ -621,7 +622,7 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
                 keyboardType="decimal-pad"
                 label="Amount (aUSD)"
                 onChangeText={(value) => {
-                  setSendAmount(value);
+                  setSendAmount(normalizeAmountInput(value));
                   setSendError(null);
                 }}
                 value={sendAmount}
@@ -633,7 +634,7 @@ export function DashboardScreen(props: DashboardProps = {}): ReactElement {
                 label={sendBusy ? "Sending…" : "Send"}
                 busy={sendBusy}
                 onPress={() => {
-                  const amount = Number(sendAmount);
+                  const amount = parseAmount(sendAmount);
                   if (!onSendAusd) {
                     setSendError("Sign in to send.");
                     return;
